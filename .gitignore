@@ -132,3 +132,6 @@ ttnn/ttnn/runtime
 ClangBuildAnalyzer.ini
 ttnn/ttnn/.rpath_checked__ttnn
 Testing
+label_passing_tests.py
+run_green_tests.sh
+third_party/boost_core/
