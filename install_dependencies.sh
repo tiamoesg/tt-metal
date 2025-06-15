@@ -21,9 +21,24 @@ VERSION=`grep '^VERSION_ID=' /etc/os-release | awk -F= '{print $2}' | tr -d '"'`
 MAJOR=${VERSION%.*}
 ARCH=`uname -m`
 
-if [ $FLAVOR != "ubuntu" ]; then
-    echo "Error: Only Ubuntu is supported"
-    exit 1
+FLAVOR=$(grep '^ID=' /etc/os-release | awk -F= '{print $2}' | tr -d '"')
+
+case "$FLAVOR" in
+    ubuntu|debian)
+        echo "✅ Supported system: $FLAVOR"
+        FLAVOR="ubuntu"  # Normalize for shared logic
+        ;;
+    *)
+        echo "❌ Error: This script only supports Ubuntu or Debian. Detected: $FLAVOR"
+        exit 1
+        ;;
+esac
+
+if [[ "$FLAVOR" == "debian" ]]; then
+  echo "⚙️ Mapping Debian '$VERSION' to Ubuntu 'jammy' (22.04)"
+  FLAVOR="ubuntu"
+  UBUNTU_CODENAME="jammy"
+  export UBUNTU_CODENAME
 fi
 
 UBUNTU_CODENAME=$(grep '^VERSION_CODENAME=' /etc/os-release | awk -F= '{print $2}' | tr -d '"')
@@ -118,7 +133,7 @@ ub_baremetal_packages() {
 
 update_package_list()
 {
-    if [ $FLAVOR == "ubuntu" ]; then
+    if [[ $FLAVOR == "ubuntu" || $FLAVOR == "debian" ]]; then
 	case "$mode" in
             runtime)
                 ub_runtime_packages
@@ -142,7 +157,7 @@ update_package_list()
 
 validate_packages()
 {
-    if [ $FLAVOR == "ubuntu" ]; then
+    if [[ $FLAVOR == "ubuntu" || $FLAVOR == "debian" ]]; then
         dpkg -l "${PKG_LIST[@]}"
     fi
 }
@@ -166,7 +181,12 @@ prep_ubuntu_build()
     apt-get install -y --no-install-recommends ca-certificates gpg lsb-release wget software-properties-common gnupg jq
     # The below is to bring cmake from kitware
     wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | gpg --dearmor - | tee /usr/share/keyrings/kitware-archive-keyring.gpg >/dev/null
-    echo "deb [signed-by=/usr/share/keyrings/kitware-archive-keyring.gpg] https://apt.kitware.com/ubuntu/ $UBUNTU_CODENAME main" | tee /etc/apt/sources.list.d/kitware.list >/dev/null
+    if [ "$UBUNTU_CODENAME" = "bookworm" ]; then
+        echo "⚠️ Skipping Kitware repo for Debian bookworm — unsupported."
+    else
+        echo "deb [signed-by=/usr/share/keyrings/kitware-archive-keyring.gpg] https://apt.kitware.com/ubuntu/ $UBUNTU_CODENAME main" | tee /etc/apt/sources.list.d/kitware.list >/dev/null
+        apt-get update
+    fi
     apt-get update
 }
 
@@ -312,7 +332,7 @@ install() {
 }
 
 cleanup() {
-    if [ $FLAVOR == "ubuntu" ]; then
+    if [[ $FLAVOR == "ubuntu" || $FLAVOR == "debian" ]]; then
         rm -rf /var/lib/apt/lists/*
     fi
 }

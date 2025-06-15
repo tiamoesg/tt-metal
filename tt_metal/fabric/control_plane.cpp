@@ -341,8 +341,8 @@ void ControlPlane::initialize_from_mesh_graph_desc_file(const std::string& mesh_
         auto eth_coords_per_chip =
             tt::tt_metal::MetalContext::instance().get_cluster().get_all_chip_ethernet_coordinates();
         std::unordered_map<int, chip_id_t> eth_coord_y_for_gateway_chips = {};
-        for (const auto [chip_id, eth_coord] : eth_coords_per_chip) {
-            if (tt::tt_metal::MetalContext::instance().get_cluster().get_board_type(chip_id) == BoardType::N150) {
+        for (const auto& [chip_id, eth_coord] : eth_coords_per_chip) {
+        if (tt::tt_metal::MetalContext::instance().get_cluster().get_board_type(chip_id) == BoardType::N150) {
                 eth_coord_y_for_gateway_chips[eth_coord.y] = chip_id;
             }
         }

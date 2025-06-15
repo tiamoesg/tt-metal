@@ -260,6 +260,8 @@ cmake_args+=("-B" "$build_dir")
 cmake_args+=("-G" "Ninja")
 cmake_args+=("-DCMAKE_BUILD_TYPE=$build_type")
 cmake_args+=("-DCMAKE_INSTALL_PREFIX=$cmake_install_prefix")
+# Workaround for Ninja RPATH install errors on Debian
+cmake_args+=("-DCMAKE_BUILD_WITH_INSTALL_RPATH=ON")
 
 if [ "$cxx_compiler_path" != "" ]; then
     echo "INFO: C++ compiler: $cxx_compiler_path"

@@ -153,11 +153,25 @@ endif()
 add_subdirectory(tt_metal/third_party/umd)
 
 ############################################################################################################################
+# Boost Core via CPM
+############################################################################################################################
+add_library(metal_common_libs INTERFACE)
+
+# Glob the boost_core include dir once (robust-ish)
+# AFTER add_library(metal_common_libs INTERFACE)
+# Find boost root (example path shown in your logs)
+set(BOOST_CORE_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/.cpmcache/boost/1359e136761ab2d10afa1c4e21086c8d824735cd/libs/core/include")
+
+# Sanity check
+message(STATUS "Manually including Boost Core headers: ${BOOST_CORE_INCLUDE_DIR}")
+
+target_include_directories(metal_common_libs INTERFACE ${BOOST_CORE_INCLUDE_DIR})
+
+############################################################################################################################
 # Constructing interface libs for common compiler flags, header directories, and libraries
 #   These interface libs are linked with PUBLIC scope at lowest common target (tt_metal/common) and at tt_metal_libs level
 #   in order to propogate to the rest of tt_metal, tt_eager, etc.
 ############################################################################################################################
-add_library(metal_common_libs INTERFACE)
 target_link_libraries(
     metal_common_libs
     INTERFACE

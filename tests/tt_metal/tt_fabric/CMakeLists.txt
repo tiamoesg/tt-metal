@@ -6,7 +6,16 @@ set(UNIT_TESTS_FABRIC_SRC
 )
 
 add_executable(fabric_unit_tests ${UNIT_TESTS_FABRIC_SRC})
-gtest_discover_tests(fabric_unit_tests)
+
+set_target_properties(fabric_unit_tests PROPERTIES
+    INSTALL_RPATH "${PROJECT_BINARY_DIR}/tt_metal/third_party/umd/device"
+    BUILD_RPATH "${PROJECT_BINARY_DIR}/tt_metal/third_party/umd/device"
+)
+
+gtest_discover_tests(fabric_unit_tests
+    PROPERTIES
+        ENVIRONMENT "LD_LIBRARY_PATH=${PROJECT_BINARY_DIR}/tt_metal/third_party/umd/device:$ENV{LD_LIBRARY_PATH}"
+)
 
 target_link_libraries(
     fabric_unit_tests
@@ -44,7 +53,16 @@ target_link_libraries(
         test_common_libs
 )
 add_executable(test_system_health)
-gtest_discover_tests(test_system_health)
+
+set_target_properties(test_system_health PROPERTIES
+    INSTALL_RPATH "${PROJECT_BINARY_DIR}/tt_metal/third_party/umd/device"
+    BUILD_RPATH "${PROJECT_BINARY_DIR}/tt_metal/third_party/umd/device"
+)
+
+gtest_discover_tests(test_system_health
+    PROPERTIES
+        ENVIRONMENT "LD_LIBRARY_PATH=${PROJECT_BINARY_DIR}/tt_metal/third_party/umd/device:$ENV{LD_LIBRARY_PATH}"
+)
 
 target_include_directories(
     test_system_health_smoke
