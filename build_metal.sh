@@ -376,6 +376,13 @@ if [ "$cxx_compiler_path" == "" ]; then
     cmake_args+=("-DCMAKE_TOOLCHAIN_FILE=${toolchain_path}")
 fi
 
+# Set runtime library paths for linking during build
+BUILD_PATH="$(pwd)/$build_dir"
+export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$BUILD_PATH/tt_metal:$BUILD_PATH/ttnn:$BUILD_PATH/lib:$BUILD_PATH/tt_metal/third_party/umd/device"
+
+echo "INFO: LD_LIBRARY_PATH set to:"
+echo "$LD_LIBRARY_PATH"
+
 echo "INFO: Configuring Project"
 echo "INFO: Running: cmake "${cmake_args[@]}""
 cmake "${cmake_args[@]}"
