@@ -86,19 +86,4 @@ if [ "$is_sourced" = false ]; then
     echo -e "${CYAN}To activate, run:${RESET} source $PYTHON_ENV_DIR/bin/activate"
 fi
 
-# Prompt for stubs only if venv is active
-if [ "$is_sourced" = true ]; then
-    echo -e "${PURPLE}Would you like to generate stubs now?${RESET}"
-    echo -e "  1) Yes (default)"
-    echo -e "  2) No"
-    read -p "Select an option [1/2]: " choice
-    choice=${choice:-1}
-    if [ "$choice" = "1" ]; then
-        echo -e "${CYAN}Generating stubs...${RESET}"
-        ./scripts/build_scripts/create_stubs.sh || echo -e "${YELLOW}[Warning] Stub generation failed. You can try later with:${RESET} ./scripts/build_scripts/create_stubs.sh"
-    else
-        echo -e "${YELLOW}Skipped stub generation. You can run it later with:${RESET} ./scripts/build_scripts/create_stubs.sh"
-    fi
-else
-    echo -e "${CYAN}Happy coding! - If you want stubs, run:${RESET} ./scripts/build_scripts/create_stubs.sh"
-fi
+echo -e "${CYAN}Happy coding! - If you want stubs, run:${RESET} ./scripts/build_scripts/create_stubs.sh"
