@@ -89,7 +89,7 @@ echo -e "${CHECK} Dependencies installed.\n"
 echo -e "${STEP} Fetching custom create_venv.sh..."
 curl -sSL https://raw.githubusercontent.com/tiamoesg/tt-metal/main/create_venv.sh -o create_venv.sh
 chmod +x create_venv.sh
-./create_venv.sh
+source create_venv.sh
 echo -e "${CHECK} Python venv created and activated.\n"
 
 # ----------------------------
