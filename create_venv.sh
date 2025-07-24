@@ -74,6 +74,13 @@ EOL
 # Do not install hooks when this is a worktree
 if [ $(git rev-parse --git-dir) = $(git rev-parse --git-common-dir) ]; then
     echo -e "${CYAN}Generating git hooks${RESET}"
+
+    # Ensure pre-commit is installed
+    if ! command -v pre-commit &> /dev/null; then
+        echo -e "${YELLOW}pre-commit not found. Installing...${RESET}"
+        pip install pre-commit
+    fi
+
     pre-commit install
     pre-commit install --hook-type commit-msg
 else
