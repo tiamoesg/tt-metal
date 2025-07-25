@@ -45,8 +45,10 @@ UBUNTU_CODENAME=$(grep '^VERSION_CODENAME=' /etc/os-release | awk -F= '{print $2
 export UBUNTU_CODENAME
 
 if [ "$EUID" -ne 0 ]; then
-    echo "This script must be run as root. Please use sudo."
-    usage
+    echo "⚠️  Running as non-root, will use sudo where needed."
+    SUDO="sudo"
+else
+    SUDO=""
 fi
 
 validate=0
@@ -166,28 +168,28 @@ prep_ubuntu_runtime()
 {
     echo "Preparing ubuntu ..."
     # Update the list of available packages
-    apt-get update
-    apt-get install -y --no-install-recommends ca-certificates gpg lsb-release wget software-properties-common gnupg jq
+    $SUDO apt-get update
+    $SUDO apt-get install -y --no-install-recommends ca-certificates gpg lsb-release wget software-properties-common gnupg jq
     wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | apt-key add -
     echo "deb http://apt.llvm.org/$UBUNTU_CODENAME/ llvm-toolchain-$UBUNTU_CODENAME-17 main" | tee /etc/apt/sources.list.d/llvm-17.list
-    apt-get update
+    $SUDO apt-get update
 }
 
 prep_ubuntu_build()
 {
     echo "Preparing ubuntu ..."
     # Update the list of available packages
-    apt-get update
-    apt-get install -y --no-install-recommends ca-certificates gpg lsb-release wget software-properties-common gnupg jq
+    $SUDO apt-get update
+    $SUDO apt-get install -y --no-install-recommends ca-certificates gpg lsb-release wget software-properties-common gnupg jq
     # The below is to bring cmake from kitware
     wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | gpg --dearmor - | tee /usr/share/keyrings/kitware-archive-keyring.gpg >/dev/null
     if [ "$UBUNTU_CODENAME" = "bookworm" ]; then
         echo "⚠️ Skipping Kitware repo for Debian bookworm — unsupported."
     else
         echo "deb [signed-by=/usr/share/keyrings/kitware-archive-keyring.gpg] https://apt.kitware.com/ubuntu/ $UBUNTU_CODENAME main" | tee /etc/apt/sources.list.d/kitware.list >/dev/null
-        apt-get update
+        $SUDO apt-get update
     fi
-    apt-get update
+    $SUDO apt-get update
 }
 
 # We currently have an affinity to clang as it is more thoroughly tested in CI
@@ -219,7 +221,7 @@ install_gcc() {
         *)
             echo "Unknown or unsupported Ubuntu version: $VERSION"
             echo "Falling back to installing default g++..."
-            apt-get install -y --no-install-recommends g++
+            $SUDO apt-get install -y --no-install-recommends g++
             echo "Using g++ version: $(g++ --version | head -n1)"
             return
             ;;
@@ -227,7 +229,7 @@ install_gcc() {
 
     echo "Detected Ubuntu $VERSION, installing g++-$GCC_VER..."
 
-    apt-get install -y --no-install-recommends g++-$GCC_VER gcc-$GCC_VER
+    $SUDO apt-get install -y --no-install-recommends g++-$GCC_VER gcc-$GCC_VER
 
     update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-$GCC_VER $GCC_VER
     update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-$GCC_VER $GCC_VER
@@ -262,7 +264,7 @@ install_sfpi() {
 	exit 1
     fi
     # we must select exactly this version
-    apt-get install -y --allow-downgrades $TEMP_DIR/sfpi-${sfpi_arch_os}.deb
+    $SUDO apt-get install -y --allow-downgrades $TEMP_DIR/sfpi-${sfpi_arch_os}.deb
     rm -rf $TEMP_DIR
 }
 
@@ -280,8 +282,8 @@ install_mpi_uflm(){
 
     # 2. Install
     echo "→ Installing $DEB_FILE …"
-    apt-get update -qq
-    apt-get install -f -y "$TMP_DIR/$DEB_FILE"
+    $SUDO apt-get update -qq
+    $SUDO apt-get install -f -y "$TMP_DIR/$DEB_FILE"
 }
 
 # We don't really want to have hugepages dependency
@@ -295,7 +297,7 @@ configure_hugepages() {
     echo "Installing Tenstorrent Hugepages Service $TT_TOOLS_NAME..."
     TEMP_DIR=$(mktemp -d)
     wget -P $TEMP_DIR $TT_TOOLS_LINK
-    apt-get install -y --no-install-recommends $TEMP_DIR/$TT_TOOLS_NAME
+    $SUDO apt-get install -y --no-install-recommends $TEMP_DIR/$TT_TOOLS_NAME
     systemctl enable --now tenstorrent-hugepages.service
     rm -rf "$TEMP_DIR"
 }
