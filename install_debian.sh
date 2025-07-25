@@ -150,5 +150,12 @@ echo -e "${CHECK} Hugepages enabled.\n"
 # FINISHED
 # ----------------------------
 echo -e "${GREEN}${BOLD}🚀 Install complete!${RESET}"
-echo -e "${MAGENTA}Run ${CYAN}source python_env/bin/activate${MAGENTA} inside tt-metal to begin coding.${RESET}"
-echo -e "${MAGENTA}To generate stubs, run: ${CYAN}./scripts/build_scripts/create_stubs.sh${RESET}\n"
+
+# Activate the Python virtual environment
+cd tt-metal
+echo -e "\n${GREEN}[✓] Activating Python virtual environment...${RESET}"
+source python_env/bin/activate
+exec "$SHELL"   # Start a new shell session with the venv active
+echo -e "${GREEN}${BOLD}🚀 venv Activated!${RESET}"
+
+echo -e "${MAGENTA}In future sessions: Run ${CYAN}source python_env/bin/activate${MAGENTA} inside tt-metal to begin coding.${RESET}"
