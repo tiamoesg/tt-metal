@@ -74,18 +74,45 @@ $PYTHON_ENV_DIR/bin/python3 -m pip install -r $(pwd)/tt_metal/python_env/require
 echo -e "${CYAN}Installing tt-metal${RESET}"
 $PYTHON_ENV_DIR/bin/pip install -e .
 
+echo -e "${CYAN}Installing tt-metal${RESET}"
+$PYTHON_ENV_DIR/bin/pip install -e .
+
+# Prompt for card model
+echo -e "${CYAN}Select your Tenstorrent card model:${RESET}"
+PS3="Enter the number for your card model: "
+options=("Grayskull" "Wormhole" "Blackhole")
+select opt in "${options[@]}"; do
+    case $opt in
+        "Grayskull")
+            ARCH_NAME="grayskull"
+            break
+            ;;
+        "Wormhole")
+            ARCH_NAME="wormhole_b0"
+            break
+            ;;
+        "Blackhole")
+            ARCH_NAME="blackhole"
+            break
+            ;;
+        *)
+            echo -e "${YELLOW}Invalid option, please try again.${RESET}"
+            ;;
+    esac
+done
+echo -e "${GREEN}Selected card model: ${BOLD}$ARCH_NAME${RESET}"
+
 # Add environment variables to venv activation script
 echo -e "${GREEN}Configuring TT-Metal environment variables in venv activation...${RESET}"
 cat <<EOL >> $PYTHON_ENV_DIR/bin/activate
 
 # TT-Metal environment variables
-export ARCH_NAME=wormhole_b0
+export ARCH_NAME=$ARCH_NAME
 export TT_METAL_HOME=$(pwd)
 export PYTHONPATH=$(pwd)
 
 echo -e "${PURPLE}[Reminder:${RESET} ${BLUE}If you switch card types (e.g., wormhole_b0 → blackhole), update ARCH_NAME in python_env/bin/activate${RESET}]"
 EOL
-
 
 # Do not install hooks when this is a worktree
 if [ $(git rev-parse --git-dir) = $(git rev-parse --git-common-dir) ]; then
@@ -109,4 +136,4 @@ if [ "$is_sourced" = false ]; then
     echo -e "${CYAN}To activate, run:${RESET} source $PYTHON_ENV_DIR/bin/activate"
 fi
 
-echo -e "${CYAN}Happy coding! - If you want stubs, run:${RESET} ./scripts/build_scripts/create_stubs.sh"
+echo -e "${CYAN}Happy coding!"
