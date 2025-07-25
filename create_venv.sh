@@ -45,6 +45,22 @@ else
     echo -e "${CYAN}To activate, run:${RESET} source $PYTHON_ENV_DIR/bin/activate"
 fi
 
+# Ensure Rust from rustup is used inside the venv
+if [ -f "$HOME/.cargo/env" ]; then
+    source "$HOME/.cargo/env"
+    echo -e "${CYAN}Using Rust version: $(rustc --version)${RESET}"
+
+    # Verify minimum Rust version
+    MIN_RUST="1.66.0"
+    if [ "$(printf '%s\n' $MIN_RUST $(rustc --version | awk '{print $2}') | sort -V | head -n1)" != "$MIN_RUST" ]; then
+        echo -e "${YELLOW}Rust is older than $MIN_RUST. Updating...${RESET}"
+        rustup install stable
+        rustup default stable
+    fi
+else
+    echo -e "${RED}Warning: rustup environment not found. Rust may be outdated.${RESET}"
+fi
+
 echo -e "${CYAN}Forcefully using a version of pip that will work with our view of editable installs${RESET}"
 $PYTHON_ENV_DIR/bin/pip install --force-reinstall pip==21.2.4
 
