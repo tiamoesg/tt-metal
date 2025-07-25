@@ -170,7 +170,7 @@ prep_ubuntu_runtime()
     # Update the list of available packages
     $SUDO apt-get update
     $SUDO apt-get install -y --no-install-recommends ca-certificates gpg lsb-release wget software-properties-common gnupg jq
-    wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | $SUDO apt-key add -
+    $SUDO wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | $SUDO apt-key add -
     echo "deb http://apt.llvm.org/$UBUNTU_CODENAME/ llvm-toolchain-$UBUNTU_CODENAME-17 main" | tee /etc/apt/sources.list.d/llvm-17.list
     $SUDO apt-get update
 }
@@ -182,11 +182,11 @@ prep_ubuntu_build()
     $SUDO apt-get update
     $SUDO apt-get install -y --no-install-recommends ca-certificates gpg lsb-release wget software-properties-common gnupg jq
     # The below is to bring cmake from kitware
-    wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | gpg --dearmor - | tee /usr/share/keyrings/kitware-archive-keyring.gpg >/dev/null
+    $SUDO wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | gpg --dearmor - | tee /usr/share/keyrings/kitware-archive-keyring.gpg >/dev/null
     if [ "$UBUNTU_CODENAME" = "bookworm" ]; then
-        echo "⚠️ Skipping Kitware repo for Debian bookworm — unsupported."
+        $SUDO echo "⚠️ Skipping Kitware repo for Debian bookworm — unsupported."
     else
-        echo "deb [signed-by=/usr/share/keyrings/kitware-archive-keyring.gpg] https://apt.kitware.com/ubuntu/ $UBUNTU_CODENAME main" | tee /etc/apt/sources.list.d/kitware.list >/dev/null
+        $SUDO echo "deb [signed-by=/usr/share/keyrings/kitware-archive-keyring.gpg] https://apt.kitware.com/ubuntu/ $UBUNTU_CODENAME main" | tee /etc/apt/sources.list.d/kitware.list >/dev/null
         $SUDO apt-get update
     fi
     $SUDO apt-get update
@@ -203,10 +203,10 @@ install_llvm() {
     else
         echo "Installing LLVM $LLVM_VERSION..."
         TEMP_DIR=$(mktemp -d)
-        wget -P $TEMP_DIR https://apt.llvm.org/llvm.sh
-        chmod u+x $TEMP_DIR/llvm.sh
-        $TEMP_DIR/llvm.sh $LLVM_VERSION
-        rm -rf "$TEMP_DIR"
+        $SUDO wget -P $TEMP_DIR https://apt.llvm.org/llvm.sh
+        $SUDO chmod u+x $TEMP_DIR/llvm.sh
+        $SUDO $TEMP_DIR/llvm.sh $LLVM_VERSION
+        $SUDO rm -rf "$TEMP_DIR"
     fi
 }
 
@@ -222,7 +222,7 @@ install_gcc() {
             echo "Unknown or unsupported Ubuntu version: $VERSION"
             echo "Falling back to installing default g++..."
             $SUDO apt-get install -y --no-install-recommends g++
-            echo "Using g++ version: $(g++ --version | head -n1)"
+            $SUDO echo "Using g++ version: $(g++ --version | head -n1)"
             return
             ;;
     esac
@@ -256,7 +256,7 @@ install_sfpi() {
 	exit 1
     fi
     local TEMP_DIR=$(mktemp -d)
-    wget -P $TEMP_DIR "$sfpi_url/$sfpi_version/sfpi-${sfpi_arch_os}.deb"
+    $SUDO wget -P $TEMP_DIR "$sfpi_url/$sfpi_version/sfpi-${sfpi_arch_os}.deb"
     if [ $(md5sum -b "${TEMP_DIR}/sfpi-${sfpi_arch_os}.deb" | cut -d' ' -f1) \
 	     != "$sfpi_deb_md5" ] ; then
 	echo "SFPI sfpi-${sfpi_arch_os}.deb md5 mismatch" >&2
@@ -278,7 +278,7 @@ install_mpi_uflm(){
     trap cleanup EXIT INT TERM
 
     echo "→ Downloading $DEB_FILE …"
-    wget -q --show-progress -O "$TMP_DIR/$DEB_FILE" "$DEB_URL"
+    $SUDO wget -q --show-progress -O "$TMP_DIR/$DEB_FILE" "$DEB_URL"
 
     # 2. Install
     echo "→ Installing $DEB_FILE …"
@@ -296,9 +296,9 @@ configure_hugepages() {
 
     echo "Installing Tenstorrent Hugepages Service $TT_TOOLS_NAME..."
     TEMP_DIR=$(mktemp -d)
-    wget -P $TEMP_DIR $TT_TOOLS_LINK
+    $SUDO wget -P $TEMP_DIR $TT_TOOLS_LINK
     $SUDO apt-get install -y --no-install-recommends $TEMP_DIR/$TT_TOOLS_NAME
-    systemctl enable --now tenstorrent-hugepages.service
+    $SUDO systemctl enable --now tenstorrent-hugepages.service
     rm -rf "$TEMP_DIR"
 }
 
@@ -328,7 +328,7 @@ install() {
                 ;;
         esac
 
-	DEBIAN_FRONTEND="noninteractive" apt-get install -y --no-install-recommends "${PKG_LIST[@]}"
+	DEBIAN_FRONTEND="noninteractive" $SUDO apt-get install -y --no-install-recommends "${PKG_LIST[@]}"
 
     fi
 }
