@@ -155,7 +155,6 @@ echo -e "${GREEN}${BOLD}🚀 Install complete!${RESET}"
 cd tt-metal
 echo -e "\n${GREEN}[✓] Activating Python virtual environment...${RESET}"
 source python_env/bin/activate
-exec "$SHELL"   # Start a new shell session with the venv active
 echo -e "${GREEN}${BOLD}🚀 venv Activated!${RESET}"
 
 echo -e "${MAGENTA}In future sessions: Run ${CYAN}source python_env/bin/activate${MAGENTA} inside tt-metal to begin coding.${RESET}"
