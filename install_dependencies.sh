@@ -171,7 +171,7 @@ prep_ubuntu_runtime()
     $SUDO apt-get update
     $SUDO apt-get install -y --no-install-recommends ca-certificates gpg lsb-release wget software-properties-common gnupg jq
     $SUDO wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | $SUDO apt-key add -
-    echo "deb http://apt.llvm.org/$UBUNTU_CODENAME/ llvm-toolchain-$UBUNTU_CODENAME-17 main" | tee /etc/apt/sources.list.d/llvm-17.list
+    $SUDO echo "deb http://apt.llvm.org/$UBUNTU_CODENAME/ llvm-toolchain-$UBUNTU_CODENAME-17 main" | $SUDO tee /etc/apt/sources.list.d/llvm-17.list
     $SUDO apt-get update
 }
 
@@ -182,11 +182,11 @@ prep_ubuntu_build()
     $SUDO apt-get update
     $SUDO apt-get install -y --no-install-recommends ca-certificates gpg lsb-release wget software-properties-common gnupg jq
     # The below is to bring cmake from kitware
-    $SUDO wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | gpg --dearmor - | tee /usr/share/keyrings/kitware-archive-keyring.gpg >/dev/null
+    $SUDO wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | gpg --dearmor - | $SUDO tee /usr/share/keyrings/kitware-archive-keyring.gpg >/dev/null
     if [ "$UBUNTU_CODENAME" = "bookworm" ]; then
         $SUDO echo "⚠️ Skipping Kitware repo for Debian bookworm — unsupported."
     else
-        $SUDO echo "deb [signed-by=/usr/share/keyrings/kitware-archive-keyring.gpg] https://apt.kitware.com/ubuntu/ $UBUNTU_CODENAME main" | tee /etc/apt/sources.list.d/kitware.list >/dev/null
+        $SUDO echo "deb [signed-by=/usr/share/keyrings/kitware-archive-keyring.gpg] https://apt.kitware.com/ubuntu/ $UBUNTU_CODENAME main" | $SUDO tee /etc/apt/sources.list.d/kitware.list >/dev/null
         $SUDO apt-get update
     fi
     $SUDO apt-get update
