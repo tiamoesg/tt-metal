@@ -170,7 +170,7 @@ prep_ubuntu_runtime()
     # Update the list of available packages
     $SUDO apt-get update
     $SUDO apt-get install -y --no-install-recommends ca-certificates gpg lsb-release wget software-properties-common gnupg jq
-    wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | apt-key add -
+    wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | $SUDO apt-key add -
     echo "deb http://apt.llvm.org/$UBUNTU_CODENAME/ llvm-toolchain-$UBUNTU_CODENAME-17 main" | tee /etc/apt/sources.list.d/llvm-17.list
     $SUDO apt-get update
 }
