@@ -168,28 +168,28 @@ prep_ubuntu_runtime()
 {
     echo "Preparing ubuntu ..."
     # Update the list of available packages
-    $SUDO apt-get update
-    $SUDO apt-get install -y --no-install-recommends ca-certificates gpg lsb-release wget software-properties-common gnupg jq
-    $SUDO wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | $SUDO apt-key add -
-    $SUDO echo "deb http://apt.llvm.org/$UBUNTU_CODENAME/ llvm-toolchain-$UBUNTU_CODENAME-17 main" | $SUDO tee /etc/apt/sources.list.d/llvm-17.list
-    $SUDO apt-get update
+     apt-get update
+     apt-get install -y --no-install-recommends ca-certificates gpg lsb-release wget software-properties-common gnupg jq
+     wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | apt-key add -
+     echo "deb http://apt.llvm.org/$UBUNTU_CODENAME/ llvm-toolchain-$UBUNTU_CODENAME-17 main" | tee /etc/apt/sources.list.d/llvm-17.list
+     apt-get update
 }
 
 prep_ubuntu_build()
 {
     echo "Preparing ubuntu ..."
     # Update the list of available packages
-    $SUDO apt-get update
-    $SUDO apt-get install -y --no-install-recommends ca-certificates gpg lsb-release wget software-properties-common gnupg jq
+     apt-get update
+     apt-get install -y --no-install-recommends ca-certificates gpg lsb-release wget software-properties-common gnupg jq
     # The below is to bring cmake from kitware
-    $SUDO wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | gpg --dearmor - | $SUDO tee /usr/share/keyrings/kitware-archive-keyring.gpg >/dev/null
+     wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | gpg --dearmor - | tee /usr/share/keyrings/kitware-archive-keyring.gpg >/dev/null
     if [ "$UBUNTU_CODENAME" = "bookworm" ]; then
-        $SUDO echo "⚠️ Skipping Kitware repo for Debian bookworm — unsupported."
+         echo "⚠️ Skipping Kitware repo for Debian bookworm — unsupported."
     else
-        $SUDO echo "deb [signed-by=/usr/share/keyrings/kitware-archive-keyring.gpg] https://apt.kitware.com/ubuntu/ $UBUNTU_CODENAME main" | $SUDO tee /etc/apt/sources.list.d/kitware.list >/dev/null
-        $SUDO apt-get update
+         echo "deb [signed-by=/usr/share/keyrings/kitware-archive-keyring.gpg] https://apt.kitware.com/ubuntu/ $UBUNTU_CODENAME main" | $SUDO tee /etc/apt/sources.list.d/kitware.list >/dev/null
+         apt-get update
     fi
-    $SUDO apt-get update
+	 apt-get update
 }
 
 # We currently have an affinity to clang as it is more thoroughly tested in CI
@@ -203,10 +203,10 @@ install_llvm() {
     else
         echo "Installing LLVM $LLVM_VERSION..."
         TEMP_DIR=$(mktemp -d)
-        $SUDO wget -P $TEMP_DIR https://apt.llvm.org/llvm.sh
-        $SUDO chmod u+x $TEMP_DIR/llvm.sh
-        $SUDO $TEMP_DIR/llvm.sh $LLVM_VERSION
-        $SUDO rm -rf "$TEMP_DIR"
+         wget -P $TEMP_DIR https://apt.llvm.org/llvm.sh
+         chmod u+x $TEMP_DIR/llvm.sh
+         $TEMP_DIR/llvm.sh $LLVM_VERSION
+         rm -rf "$TEMP_DIR"
     fi
 }
 
@@ -229,7 +229,7 @@ install_gcc() {
 
     echo "Detected Ubuntu $VERSION, installing g++-$GCC_VER..."
 
-    $SUDO apt-get install -y --no-install-recommends g++-$GCC_VER gcc-$GCC_VER
+     apt-get install -y --no-install-recommends g++-$GCC_VER gcc-$GCC_VER
 
     update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-$GCC_VER $GCC_VER
     update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-$GCC_VER $GCC_VER
@@ -256,7 +256,7 @@ install_sfpi() {
 	exit 1
     fi
     local TEMP_DIR=$(mktemp -d)
-    $SUDO wget -P $TEMP_DIR "$sfpi_url/$sfpi_version/sfpi-${sfpi_arch_os}.deb"
+     wget -P $TEMP_DIR "$sfpi_url/$sfpi_version/sfpi-${sfpi_arch_os}.deb"
     if [ $(md5sum -b "${TEMP_DIR}/sfpi-${sfpi_arch_os}.deb" | cut -d' ' -f1) \
 	     != "$sfpi_deb_md5" ] ; then
 	echo "SFPI sfpi-${sfpi_arch_os}.deb md5 mismatch" >&2
@@ -264,7 +264,7 @@ install_sfpi() {
 	exit 1
     fi
     # we must select exactly this version
-    $SUDO apt-get install -y --allow-downgrades $TEMP_DIR/sfpi-${sfpi_arch_os}.deb
+     apt-get install -y --allow-downgrades $TEMP_DIR/sfpi-${sfpi_arch_os}.deb
     rm -rf $TEMP_DIR
 }
 
@@ -278,12 +278,12 @@ install_mpi_uflm(){
     trap cleanup EXIT INT TERM
 
     echo "→ Downloading $DEB_FILE …"
-    $SUDO wget -q --show-progress -O "$TMP_DIR/$DEB_FILE" "$DEB_URL"
+     wget -q --show-progress -O "$TMP_DIR/$DEB_FILE" "$DEB_URL"
 
     # 2. Install
     echo "→ Installing $DEB_FILE …"
-    $SUDO apt-get update -qq
-    $SUDO apt-get install -f -y "$TMP_DIR/$DEB_FILE"
+     apt-get update -qq
+     apt-get install -f -y "$TMP_DIR/$DEB_FILE"
 }
 
 # We don't really want to have hugepages dependency
@@ -296,9 +296,9 @@ configure_hugepages() {
 
     echo "Installing Tenstorrent Hugepages Service $TT_TOOLS_NAME..."
     TEMP_DIR=$(mktemp -d)
-    $SUDO wget -P $TEMP_DIR $TT_TOOLS_LINK
-    $SUDO apt-get install -y --no-install-recommends $TEMP_DIR/$TT_TOOLS_NAME
-    $SUDO systemctl enable --now tenstorrent-hugepages.service
+     wget -P $TEMP_DIR $TT_TOOLS_LINK
+     apt-get install -y --no-install-recommends $TEMP_DIR/$TT_TOOLS_NAME
+     systemctl enable --now tenstorrent-hugepages.service
     rm -rf "$TEMP_DIR"
 }
 
@@ -328,7 +328,7 @@ install() {
                 ;;
         esac
 
-	DEBIAN_FRONTEND="noninteractive" $SUDO apt-get install -y --no-install-recommends "${PKG_LIST[@]}"
+	DEBIAN_FRONTEND="noninteractive" apt-get install -y --no-install-recommends "${PKG_LIST[@]}"
 
     fi
 }
