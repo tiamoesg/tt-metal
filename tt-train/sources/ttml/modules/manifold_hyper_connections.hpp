@@ -6,6 +6,8 @@
 
 #include "autograd/module_base.hpp"
 #include "autograd/tensor.hpp"
+#include "modules/linear_module.hpp"
+#include "modules/rms_norm_module.hpp"
 
 namespace ttml::modules {
 
@@ -16,9 +18,10 @@ namespace ttml::modules {
 // layer l is X_l in R^{n_hc x d}; mapped here onto the N dimension of a rank-4
 // tensor [B, n_hc, S, d]. With an inner layer F (attention / MoE / MLP):
 //
-//   A   = sigma(raw_A)            in (0, 1)^{1 x n_hc}
-//   B   = Sinkhorn(raw_B)         doubly-stochastic in [0, 1]^{n_hc x n_hc}
-//   C   = 2 sigma(raw_C)          in (0, 2)^{n_hc x 1}
+//   X_hat = RMSNorm(vec(X_l))                          // dynamic mode only
+//   A     = sigma( alpha_pre  * X_hat W_pre  + S_pre )   in (0, 1)^{1 x n_hc}
+//   B     = Sinkhorn( alpha_res * X_hat W_res + S_res )  doubly-stochastic^{n_hc x n_hc}
+//   C     = 2 sigma( alpha_post * X_hat W_post + S_post ) in (0, 2)^{n_hc x 1}
 //   X_{l+1} = B X_l + C F(A X_l)
 //
 // The defining trick (vs. plain Hyper-Connections) is constraining B to the
@@ -26,19 +29,20 @@ namespace ttml::modules {
 // bounds ||B||_2 <= 1 (a non-expansive residual map) and keeps deep stacks
 // numerically stable. A and C are bounded via sigmoid.
 //
-// This module is fully differentiable: the gates (ops::sigmoid), the Sinkhorn
-// projection (ops::exp / ops::sum / ops::broadcast_to / ops::div) and the stream
-// mixing (ops::reshape + ops::matmul_op) all flow gradients into raw_A/B/C.
+// Two parameterizations are supported:
+//   * static  (dynamic_parameterization = false): A/B/C are learned but
+//     input-independent (the raw_* parameters are constrained directly).
+//   * dynamic (dynamic_parameterization = true): A/B/C are generated per token
+//     from X_hat = RMSNorm(vec(X_l)) via the W_* projections, matching the
+//     DeepSeek-V4 formulation.
 //
-// STATUS: implements the *static* parameterization, i.e. A/B/C are learned but
-// input-independent. The full DeepSeek-V4 *dynamic* form generates A/B/C
-// per-token from RMSNorm(vec(X_l)) via additional projections; that needs a
-// permute op to form vec(X_l) and per-token Sinkhorn, and is the next step
-// (set dynamic_parameterization=true to opt in once implemented).
+// Both paths are fully differentiable, built from autograd ops (sigmoid, exp,
+// sum, broadcast_to, reshape, permute, matmul_op) with no new kernels.
 struct ManifoldHyperConnectionsConfig {
     uint32_t num_streams{4};      // n_hc, residual-stream expansion factor
     uint32_t hidden_dim{0};       // d, must be set to the layer hidden size
     uint32_t sinkhorn_iters{20};  // t_max
+    float alpha_init{1e-2F};      // initial value of the dynamic gating factors
     bool dynamic_parameterization{false};
 };
 
@@ -50,15 +54,31 @@ public:
     [[nodiscard]] autograd::TensorPtr operator()(const autograd::TensorPtr& expanded_residual) override;
 
 private:
+    autograd::TensorPtr compute_static(const autograd::TensorPtr& x);
+    autograd::TensorPtr compute_dynamic(const autograd::TensorPtr& x);
+
     ManifoldHyperConnectionsConfig m_config;
     autograd::ModuleBasePtr m_inner_layer;
 
+    // --- static parameterization ---
     // Raw (pre-constraint) parameters. After the manifold constraints these
     // become A in (0,1)^{1 x n_hc}, B doubly-stochastic^{n_hc x n_hc}, and
     // C in (0,2)^{n_hc x 1}.
     autograd::TensorPtr m_raw_a;
     autograd::TensorPtr m_raw_b;
     autograd::TensorPtr m_raw_c;
+
+    // --- dynamic parameterization ---
+    std::shared_ptr<RMSNormLayer> m_vec_norm;
+    std::shared_ptr<LinearLayer> m_w_pre;
+    std::shared_ptr<LinearLayer> m_w_res;
+    std::shared_ptr<LinearLayer> m_w_post;
+    autograd::TensorPtr m_s_pre;
+    autograd::TensorPtr m_s_res;
+    autograd::TensorPtr m_s_post;
+    autograd::TensorPtr m_alpha_pre;
+    autograd::TensorPtr m_alpha_res;
+    autograd::TensorPtr m_alpha_post;
 };
 
 }  // namespace ttml::modules
