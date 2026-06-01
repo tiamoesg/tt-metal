@@ -34,6 +34,7 @@ set(SOURCES
     datasets/dataloader_test.cpp
     optimizers/adamw_test.cpp
     optimizers/muon_test.cpp
+    modules/manifold_hyper_connections_test.cpp
     modules/distributed/linear_test.cpp
     serialization/model_serializer_test.cpp
     serialization/msgpack_serializer_test.cpp
