@@ -11,6 +11,7 @@ training_config:
   learning_rate: 0.01
   weight_decay: 0.01
   optimizer_type: "muon"
+  model_path: "nano_gpt_muon.msgpack"
   use_kahan_summation: false
   use_clip_grad_norm: false
   clip_grad_norm_max_norm: 1.0
