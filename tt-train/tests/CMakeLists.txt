@@ -40,6 +40,7 @@ set(SOURCES
     serialization/msgpack_serializer_test.cpp
     serialization/tensor_serializer_test.cpp
     ops/cross_entropy_fw_op_test.cpp
+    ops/cross_entropy_masked_test.cpp
     ops/positional_embedding_test.cpp
     ops/layer_norm_op_test.cpp
     ops/distributed/comm_ops_test.cpp

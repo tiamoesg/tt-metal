@@ -58,6 +58,50 @@ autograd::TensorPtr cross_entropy_loss(
     return out;
 }
 
+autograd::TensorPtr cross_entropy_loss_masked(
+    const autograd::TensorPtr& prediction, const autograd::TensorPtr& target, const autograd::TensorPtr& mask) {
+    auto* device = &autograd::ctx().get_device();
+
+    // Per-position cross-entropy: [N, 1, H, 1].
+    auto loss_per_pos = ttml::metal::cross_entropy_fw(prediction->get_value(), target->get_value());
+    auto mask_value = mask->get_value();
+
+    // loss = sum(mask * ce) / max(sum(mask), 1). The clamp guards against an
+    // all-masked batch producing a divide-by-zero.
+    auto reduce_all = [](const ttnn::Tensor& t) {
+        return ttnn::sum(
+            t,
+            /* dim_arg */ ttnn::SmallVector<int>{0, 1, 2, 3},
+            /* keep_dim */ true,
+            /* output_mem_config */ std::nullopt,
+            /* compute_kernel_config */ core::ComputeKernelConfig::precise());
+    };
+    auto loss_sum = reduce_all(ttnn::multiply(loss_per_pos, mask_value));
+    auto mask_count = ttnn::maximum(reduce_all(mask_value), core::ones(ttnn::Shape({1, 1, 1, 1}), device));
+    auto out = autograd::create_tensor(ttnn::divide(loss_sum, mask_count));
+
+    autograd::GradFunction grad = [prediction, target, mask, out, mask_count, device]() {
+        // cross_entropy_bw with a unit upstream gradient and unit scaler returns
+        // exactly (softmax(logits) - onehot(target)) per position: [N, 1, H, W].
+        auto unit_grad = core::ones(ttnn::Shape({1, 1, 1, 1}), device);
+        auto softmax_minus_onehot =
+            ttml::metal::cross_entropy_bw(prediction->get_value(), target->get_value(), unit_grad, /* scaler */ 1.0F);
+
+        // Per-position weight mask / sum(mask), scaled by the upstream gradient,
+        // then broadcast across the vocabulary dimension. Masked positions get a
+        // zero weight and therefore a zero gradient.
+        auto weight = ttnn::divide(mask->get_value(), mask_count);  // [N, 1, H, 1]
+        weight = ttnn::multiply(weight, out->get_grad());           // [N, 1, H, 1] x [1, 1, 1, 1]
+        auto grad = ttnn::multiply(softmax_minus_onehot, weight);   // [N, 1, H, W] x [N, 1, H, 1] (bcast)
+        prediction->add_grad(grad);
+    };
+
+    auto links = autograd::get_links(prediction);
+    out->set_node(autograd::ctx().add_backward_node(std::move(grad), links));
+
+    return out;
+}
+
 autograd::TensorPtr nll_loss(
     const autograd::TensorPtr& prediction, const autograd::TensorPtr& target, ReduceType reduce) {
     if (reduce != ReduceType::MEAN) {
