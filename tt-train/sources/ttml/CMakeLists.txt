@@ -41,6 +41,7 @@ set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/modules/layer_norm_module.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/modules/linear_module.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/modules/llama_block.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/modules/manifold_hyper_connections.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/modules/module_base.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/modules/multi_head_attention.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/modules/multi_layer_perceptron.cpp
@@ -68,6 +69,8 @@ set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/ops/rmsnorm_op.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ops/newton_schulz_op.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ops/newton_schulz_op.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ops/permute_op.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ops/permute_op.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ops/rope_op.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ops/softmax_backward_op.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ops/scaled_dot_product_attention.cpp
