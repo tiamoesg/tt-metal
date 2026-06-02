@@ -83,6 +83,8 @@ set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/optimizers/adamw.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/optimizers/muon_composite.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/optimizers/muon_composite.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/optimizers/muon_v4.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/optimizers/muon_v4.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/optimizers/optimizer_base.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/optimizers/remote_optimizer.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/optimizers/sgd_composite.cpp

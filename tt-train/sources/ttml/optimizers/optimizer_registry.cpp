@@ -8,6 +8,7 @@
 #include "optimizers/adamw_composite.hpp"
 #include "optimizers/adamw_full_precision.hpp"
 #include "optimizers/muon_composite.hpp"
+#include "optimizers/muon_v4.hpp"
 #include "optimizers/no_op.hpp"
 #include "optimizers/sgd.hpp"
 #include "optimizers/sgd_composite.hpp"
@@ -93,6 +94,20 @@ OptimizerRegistry::OptimizerRegistry() {
                 .lr = config["lr"].as<float>(1e-3F),
                 .momentum = config["momentum"].as<float>(0.95F),
                 .ns_steps = config["ns_steps"].as<int>(5)});
+    });
+
+    register_optimizer("MuonV4", [](const YAML::Node& config, serialization::NamedParameters params) {
+        return std::make_unique<MuonV4>(
+            std::move(params),
+            MuonV4Config{
+                .lr = config["lr"].as<float>(2e-2F),
+                .momentum = config["momentum"].as<float>(0.95F),
+                .weight_decay = config["weight_decay"].as<float>(0.0F),
+                .nesterov = config["nesterov"].as<bool>(true),
+                .ns_steps = config["ns_steps"].as<int>(10),
+                .ns_stabilize_steps = config["ns_stabilize_steps"].as<int>(2),
+                .update_rms_scale = config["update_rms_scale"].as<float>(0.2F),
+                .fallback_on_non_matrix = config["fallback_on_non_matrix"].as<bool>(true)});
     });
 
     register_optimizer("SGDComposite", [](const YAML::Node& config, serialization::NamedParameters params) {
