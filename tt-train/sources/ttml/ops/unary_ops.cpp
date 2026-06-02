@@ -183,6 +183,26 @@ autograd::TensorPtr clip(const autograd::TensorPtr& tensor, float lo, float hi) 
     return out;
 }
 
+autograd::TensorPtr softmax(const autograd::TensorPtr& tensor, int dim) {
+    // Forward uses the numerically stable softmax; backward uses the fused moreh
+    // softmax-backward kernel (same pattern as composite SDPA).
+    auto out = autograd::create_tensor(ttnn_fixed::softmax(tensor->get_value(), dim));
+    autograd::GradFunction grad = [tensor, out, dim]() {
+        auto res = ttnn::moreh_softmax_backward(
+            out->get_value(),
+            out->get_grad(),
+            /* axis */ dim,
+            /* output */ std::nullopt,
+            ttnn::operations::moreh::moreh_softmax_backward::MorehSoftmaxBackwardOp::SOFTMAX,
+            ttnn::operations::moreh::moreh_softmax_backward::MorehSoftmaxBackwardOpParallelizationStrategy::NONE,
+            /* output_mem_config */ std::nullopt,
+            /* compute_kernel_config */ core::ComputeKernelConfig::precise());
+        tensor->add_grad(res);
+    };
+    out->set_node(autograd::add_backward_node(std::move(grad), out, tensor));
+    return out;
+}
+
 autograd::TensorPtr sigmoid(const autograd::TensorPtr& tensor) {
     auto out = autograd::create_tensor(ttnn::sigmoid(tensor->get_value()));
     autograd::GradFunction grad = [tensor, out]() {

@@ -23,6 +23,8 @@ autograd::TensorPtr broadcast_batch(const autograd::TensorPtr& tensor, uint32_t 
 autograd::TensorPtr broadcast_to(const autograd::TensorPtr& tensor, const ttnn::Shape& target_shape);
 autograd::TensorPtr log_softmax(const autograd::TensorPtr& tensor, int dim);
 autograd::TensorPtr log_softmax_moreh(const autograd::TensorPtr& tensor, int dim);
+// Numerically stable softmax over a single dimension (autograd-aware).
+autograd::TensorPtr softmax(const autograd::TensorPtr& tensor, int dim);
 autograd::TensorPtr exp(const autograd::TensorPtr& tensor);
 autograd::TensorPtr clip(const autograd::TensorPtr& tensor, float lo, float hi);
 }  // namespace ttml::ops

@@ -43,6 +43,7 @@ set(SOURCES
     optimizers/adamw_full_precision_test.cpp
     optimizers/no_op_test.cpp
     modules/distributed/linear_test.cpp
+    modules/kv_compressor_test.cpp
     modules/manifold_hyper_connections_test.cpp
     serialization/model_serializer_test.cpp
     serialization/flatbuffer_serializer_test.cpp
