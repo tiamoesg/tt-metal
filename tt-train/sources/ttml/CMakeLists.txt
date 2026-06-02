@@ -40,6 +40,7 @@ set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/modules/grouped_query_attention.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/modules/kv_compressor.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/modules/layer_norm_module.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/modules/lightning_indexer.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/modules/linear_module.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/modules/llama_block.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/modules/manifold_hyper_connections.cpp
