@@ -7,6 +7,7 @@
 #include <array>
 #include <core/ttnn_all_includes.hpp>
 #include <optional>
+#include <stdexcept>
 
 #include "autograd/auto_context.hpp"
 #include "autograd/graph.hpp"
@@ -61,6 +62,54 @@ autograd::TensorPtr silu(const autograd::TensorPtr& tensor) {
     auto links = autograd::get_links(tensor);
     out->set_node(autograd::ctx().add_backward_node(std::move(grad), links));
 
+    return out;
+}
+
+autograd::TensorPtr sigmoid(const autograd::TensorPtr& tensor) {
+    auto out = autograd::create_tensor(ttnn::sigmoid(tensor->get_value()));
+    autograd::GradFunction grad = [tensor, out]() {
+        // d/dx sigmoid(x) = s * (1 - s), where s = sigmoid(x) is the output.
+        auto s = out->get_value();
+        auto one_minus_s = ttnn::add(ttnn::multiply(s, -1.0F), 1.0F);
+        auto local_grad = ttnn::multiply(s, one_minus_s);
+        tensor->add_grad(ttnn::multiply(out->get_grad(), local_grad));
+    };
+    auto links = autograd::get_links(tensor);
+    out->set_node(autograd::ctx().add_backward_node(std::move(grad), links));
+    return out;
+}
+
+autograd::TensorPtr exp(const autograd::TensorPtr& tensor) {
+    auto out = autograd::create_tensor(ttnn::exp(tensor->get_value()));
+    autograd::GradFunction grad = [tensor, out]() {
+        // d/dx exp(x) = exp(x), which is exactly the stored output value.
+        tensor->add_grad(ttnn::multiply(out->get_grad(), out->get_value()));
+    };
+    auto links = autograd::get_links(tensor);
+    out->set_node(autograd::ctx().add_backward_node(std::move(grad), links));
+    return out;
+}
+
+autograd::TensorPtr sum(const autograd::TensorPtr& tensor, int dim, bool keep_dim) {
+    if (!keep_dim) {
+        throw std::runtime_error("ops::sum(tensor, dim, keep_dim) currently supports keep_dim=true only.");
+    }
+    auto out = autograd::create_tensor(ttnn::sum(
+        tensor->get_value(),
+        /* dim_arg */ ttnn::SmallVector<int>{dim},
+        /* keep_dim */ true,
+        /* output_mem_config */ std::nullopt,
+        /* compute_kernel_config */ core::ComputeKernelConfig::precise()));
+    autograd::GradFunction grad = [tensor, out]() {
+        // Backward of a keep_dim sum replicates the reduced (size-1) dimension
+        // back to the input shape.
+        const auto in = tensor->get_value().logical_shape().to_array_4D();
+        const auto g = out->get_grad().logical_shape().to_array_4D();
+        auto repeats = ttnn::Shape({in[0] / g[0], in[1] / g[1], in[2] / g[2], in[3] / g[3]});
+        tensor->add_grad(ttnn::repeat(out->get_grad(), repeats));
+    };
+    auto links = autograd::get_links(tensor);
+    out->set_node(autograd::ctx().add_backward_node(std::move(grad), links));
     return out;
 }
 
@@ -150,6 +199,42 @@ autograd::TensorPtr broadcast_batch(const autograd::TensorPtr& tensor, uint32_t 
     };
     std::vector<autograd::NodeId> links = autograd::get_links(tensor);
 
+    out->set_node(autograd::ctx().add_backward_node(std::move(grad), links));
+    return out;
+}
+
+autograd::TensorPtr broadcast_to(const autograd::TensorPtr& tensor, const ttnn::Shape& target_shape) {
+    auto input_shape = tensor->get_value().logical_shape();
+    if (input_shape == target_shape) {
+        return tensor;
+    }
+    const auto in = input_shape.to_array_4D();
+    const auto out_arr = target_shape.to_array_4D();
+    auto repeats = ttnn::Shape({out_arr[0] / in[0], out_arr[1] / in[1], out_arr[2] / in[2], out_arr[3] / in[3]});
+
+    auto out = autograd::create_tensor(ttnn::repeat(tensor->get_value(), repeats));
+    autograd::GradFunction grad = [tensor, out]() {
+        auto input_shape = tensor->get_value().logical_shape();
+        auto grad_shape = out->get_grad().logical_shape();
+        ttnn::SmallVector<int64_t> broadcast_dims;
+        for (size_t i = 0; i < input_shape.size(); ++i) {
+            if (input_shape[i] != grad_shape[i]) {
+                broadcast_dims.push_back(static_cast<int64_t>(i));
+            }
+        }
+        if (broadcast_dims.empty()) {
+            tensor->add_grad(out->get_grad());
+            return;
+        }
+        tensor->add_grad(ttnn::moreh_sum(
+            out->get_grad(),
+            broadcast_dims,
+            /* keep_dim */ true,
+            /* output_tensor */ std::nullopt,
+            /* memory_config_arg */ std::nullopt,
+            core::ComputeKernelConfig::precise()));
+    };
+    auto links = autograd::get_links(tensor);
     out->set_node(autograd::ctx().add_backward_node(std::move(grad), links));
     return out;
 }

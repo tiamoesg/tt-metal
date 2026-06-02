@@ -33,11 +33,14 @@ set(SOURCES
     datasets/generators_test.cpp
     datasets/dataloader_test.cpp
     optimizers/adamw_test.cpp
+    optimizers/muon_test.cpp
+    modules/manifold_hyper_connections_test.cpp
     modules/distributed/linear_test.cpp
     serialization/model_serializer_test.cpp
     serialization/msgpack_serializer_test.cpp
     serialization/tensor_serializer_test.cpp
     ops/cross_entropy_fw_op_test.cpp
+    ops/cross_entropy_masked_test.cpp
     ops/positional_embedding_test.cpp
     ops/layer_norm_op_test.cpp
     ops/distributed/comm_ops_test.cpp
