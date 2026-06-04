@@ -13,6 +13,7 @@
 
 #include "autograd/auto_context.hpp"
 #include "core/tt_tensor_utils.hpp"
+#include "ops/attention_masks.hpp"
 #include "ops/binary_ops.hpp"
 #include "ops/matmul_op.hpp"
 #include "ops/permute_op.hpp"
@@ -27,20 +28,6 @@ namespace {
 // Move (heads, seq) into [B, H, S, *] layout, identical to MLA's split_heads:
 // [B, 1, S, H*D] -> [B, S, H, D] -> permute(0,2,1,3) -> [B, H, S, D].
 const ttnn::SmallVector<int64_t> kHeadsToFront = {0, 2, 1, 3};
-
-// Compressed-causal keep mask [1, 1, S, G]: query token t (in compressed block
-// floor(t/m)) may attend to compressed block s iff s < floor(t/m). 1 = allowed.
-tt::tt_metal::Tensor compressed_causal_keep(
-    uint32_t seq, uint32_t groups, uint32_t rate, ttnn::distributed::MeshDevice* device) {
-    std::vector<float> data(static_cast<size_t>(seq) * groups, 0.0F);
-    for (uint32_t t = 0; t < seq; ++t) {
-        const uint32_t allowed = t / rate;  // blocks [0, allowed) are visible
-        for (uint32_t s = 0; s < groups; ++s) {
-            data[static_cast<size_t>(t) * groups + s] = (s < allowed) ? 1.0F : 0.0F;
-        }
-    }
-    return core::from_vector(data, ttnn::Shape({1, 1, seq, groups}), device);
-}
 
 }  // namespace
 
@@ -101,8 +88,8 @@ tt::tt_metal::Tensor LightningIndexer::selection_mask(const autograd::TensorPtr&
     }
 
     // Compressed-causal keep mask, broadcast over the batch.
-    auto causal = compressed_causal_keep(seq, groups, m_config.compression_rate, device);  // [1, 1, S, G]
-    auto causal_b = ttnn::repeat(causal, ttnn::Shape({batch, 1, 1, 1}));                   // [B, 1, S, G]
+    auto causal = ops::compressed_causal_keep(seq, groups, m_config.compression_rate, device);  // [1, 1, S, G]
+    auto causal_b = ttnn::repeat(causal, ttnn::Shape({batch, 1, 1, 1}));                        // [B, 1, S, G]
 
     // Mask out non-causal blocks before selecting, so they can never be chosen.
     auto masked_scores = ttnn::where(causal_b, scores, /* other */ -1e9F);

@@ -9,6 +9,8 @@
 
 #include "autograd/auto_context.hpp"
 #include "core/tt_tensor_utils.hpp"
+#include "ops/attention_masks.hpp"
+#include "ops/concat_op.hpp"
 #include "ops/permute_op.hpp"
 #include "ops/reshape_op.hpp"
 #include "ops/sink_attention.hpp"
@@ -62,6 +64,13 @@ CompressedSparseAttention::CompressedSparseAttention(const CompressedSparseAtten
     register_module(m_kv_norm, "kv_norm");
     register_tensor(m_sink_logits, "sink_logits");
     register_module(m_out_proj, "out_proj");
+
+    if (m_config.sliding_window > 0U) {
+        m_w_win = std::make_shared<LinearLayer>(m_config.dim, m_config.head_dim, /* has_bias */ false);
+        m_win_norm = std::make_shared<RMSNormLayer>(m_config.head_dim);
+        register_module(m_w_win, "w_win");
+        register_module(m_win_norm, "win_norm");
+    }
 }
 
 autograd::TensorPtr CompressedSparseAttention::operator()(const autograd::TensorPtr& hidden) {
@@ -80,19 +89,36 @@ autograd::TensorPtr CompressedSparseAttention::operator()(const autograd::Tensor
     auto latent = (*m_w_dq)(hidden);  // [B, 1, S, d_c]
 
     // Lightning indexer -> differentiable scores (for the aux loss) and 0/1 top-k
-    // selection mask (stop-gradient).
-    m_last_index_scores = m_indexer->index_scores(hidden, latent, idx_keys);  // [B, 1, S, G]
-    auto keep_mask = autograd::create_tensor(m_indexer->selection_mask(m_last_index_scores));
+    // selection mask (stop-gradient), [B, 1, S, G].
+    m_last_index_scores = m_indexer->index_scores(hidden, latent, idx_keys);
+    auto selection = m_indexer->selection_mask(m_last_index_scores);
 
     // Main queries from the same latent, split into heads, per-head RMSNorm.
     auto q = (*m_w_uq)(latent);  // [B, 1, S, n_h*c]
     auto q_heads = ops::permute(ops::reshape(q, ttnn::Shape({batch, seq, heads, head_dim})), kHeadsToFront);
     q_heads = (*m_q_norm)(q_heads);  // [B, n_h, S, c]
 
-    // Sparse shared-KV MQA with attention sink (mask selects the top-k blocks).
-    auto attn = ops::shared_kv_mqa_attention(q_heads, kv, m_sink_logits, keep_mask);  // [B, n_h, S, c]
+    if (m_config.sliding_window == 0U) {
+        // Sparse shared-KV MQA with attention sink (mask selects the top-k blocks).
+        auto keep_mask = autograd::create_tensor(selection);
+        auto attn = ops::shared_kv_mqa_attention(q_heads, kv, m_sink_logits, keep_mask);  // [B, n_h, S, c]
+        return (*m_out_proj)(attn);
+    }
 
-    return (*m_out_proj)(attn);  // [B, 1, S, d]
+    // Sliding-window branch: recent uncompressed tokens, concatenated with the
+    // selected compressed entries as additional keys/values (§2.3.3).
+    auto* device = &autograd::ctx().get_device();
+    auto win_kv = (*m_win_norm)((*m_w_win)(hidden));            // [B, 1, S, c]
+    auto combined_kv = ops::concat({win_kv, kv}, /* dim */ 2);  // [B, 1, S+G, c]
+
+    // Combined keep mask [B, 1, S, S+G] = [sliding-window-causal | top-k selection].
+    auto window_mask = ops::sliding_window_keep(seq, m_config.sliding_window, device);  // [1,1,S,S]
+    auto window_mask_b = ttnn::repeat(window_mask, ttnn::Shape({batch, 1, 1, 1}));      // [B,1,S,S]
+    auto combined_mask =
+        autograd::create_tensor(ttnn::concat(std::vector<ttnn::Tensor>{window_mask_b, selection}, /* dim */ 3));
+
+    auto attn = ops::shared_kv_mqa_attention(q_heads, combined_kv, m_sink_logits, combined_mask);  // [B, n_h, S, c]
+    return (*m_out_proj)(attn);                                                                    // [B, 1, S, d]
 }
 
 }  // namespace ttml::modules

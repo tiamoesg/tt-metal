@@ -56,6 +56,8 @@ set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/modules/rms_norm_module.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/modules/rotary_embedding.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/modules/single_head_attention.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ops/attention_masks.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ops/attention_masks.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ops/binary_ops.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ops/concat_op.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ops/concat_op.hpp

@@ -64,3 +64,35 @@ TEST_F(HeavilyCompressedAttentionTest, ForwardShapeAndBackward) {
     EXPECT_TRUE(params.at("heavily_compressed_attention/out_proj/out_proj/weight")->is_grad_initialized());
     EXPECT_TRUE(hidden->is_grad_initialized());
 }
+
+// With the sliding-window branch enabled, the output keeps its shape and the
+// window KV projection receives gradients.
+TEST_F(HeavilyCompressedAttentionTest, SlidingWindowForwardAndBackward) {
+    auto* device = &ttml::autograd::ctx().get_device();
+    const uint32_t seq = 128;
+    const uint32_t dim = 64;
+
+    ttml::modules::HeavilyCompressedAttentionConfig config;
+    config.dim = dim;
+    config.num_heads = 4;
+    config.head_dim = 32;
+    config.query_comp_dim = 32;
+    config.compression_rate = 4;
+    config.num_groups = 2;
+    config.group_inter_dim = 16;
+    config.sliding_window = 64;  // recent 64 uncompressed tokens
+    auto attn = ttml::modules::HeavilyCompressedAttention(config);
+
+    auto hidden = ttml::autograd::create_tensor(ttml::core::ones(ttnn::Shape({1, 1, seq, dim}), device), true);
+    auto out = attn(hidden);
+    EXPECT_EQ(out->get_value().logical_shape()[2], seq);
+    EXPECT_EQ(out->get_value().logical_shape()[3], dim);
+
+    auto target = ttml::autograd::create_tensor(ttml::core::zeros(out->get_value().logical_shape(), device));
+    auto loss = ttml::ops::mse_loss(out, target);
+    loss->backward();
+
+    auto params = attn.parameters();
+    EXPECT_TRUE(params.at("heavily_compressed_attention/w_win/weight")->is_grad_initialized());
+    EXPECT_TRUE(hidden->is_grad_initialized());
+}

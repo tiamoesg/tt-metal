@@ -12,6 +12,8 @@
 
 #include "autograd/auto_context.hpp"
 #include "core/tt_tensor_utils.hpp"
+#include "ops/attention_masks.hpp"
+#include "ops/concat_op.hpp"
 #include "ops/permute_op.hpp"
 #include "ops/reshape_op.hpp"
 #include "ops/sink_attention.hpp"
@@ -19,24 +21,7 @@
 namespace ttml::modules {
 
 namespace {
-
 const ttnn::SmallVector<int64_t> kHeadsToFront = {0, 2, 1, 3};  // [B,S,H,c] -> [B,H,S,c]
-
-// Compressed-causal keep mask [1, 1, S, G]: query t may attend to compressed
-// block s iff s < floor(t/m') (a query cannot see its own or later blocks; the
-// sliding-window branch -- not yet wired -- covers the local context).
-tt::tt_metal::Tensor compressed_causal_keep(
-    uint32_t seq, uint32_t groups, uint32_t rate, ttnn::distributed::MeshDevice* device) {
-    std::vector<float> data(static_cast<size_t>(seq) * groups, 0.0F);
-    for (uint32_t t = 0; t < seq; ++t) {
-        const uint32_t allowed = t / rate;
-        for (uint32_t s = 0; s < groups; ++s) {
-            data[static_cast<size_t>(t) * groups + s] = (s < allowed) ? 1.0F : 0.0F;
-        }
-    }
-    return core::from_vector(data, ttnn::Shape({1, 1, seq, groups}), device);
-}
-
 }  // namespace
 
 HeavilyCompressedAttention::HeavilyCompressedAttention(const HeavilyCompressedAttentionConfig& config) :
@@ -71,6 +56,13 @@ HeavilyCompressedAttention::HeavilyCompressedAttention(const HeavilyCompressedAt
     register_module(m_kv_norm, "kv_norm");
     register_tensor(m_sink_logits, "sink_logits");
     register_module(m_out_proj, "out_proj");
+
+    if (m_config.sliding_window > 0U) {
+        m_w_win = std::make_shared<LinearLayer>(m_config.dim, m_config.head_dim, /* has_bias */ false);
+        m_win_norm = std::make_shared<RMSNormLayer>(m_config.head_dim);
+        register_module(m_w_win, "w_win");
+        register_module(m_win_norm, "win_norm");
+    }
 }
 
 autograd::TensorPtr HeavilyCompressedAttention::operator()(const autograd::TensorPtr& hidden) {
@@ -79,6 +71,8 @@ autograd::TensorPtr HeavilyCompressedAttention::operator()(const autograd::Tenso
     const uint32_t seq = shape[2];
     const uint32_t heads = m_config.num_heads;
     const uint32_t head_dim = m_config.head_dim;
+
+    auto* device = &autograd::ctx().get_device();
 
     // Compressed, normalized shared KV entries: [B, 1, G, c].
     auto kv = (*m_kv_norm)((*m_compressor)(hidden));
@@ -89,12 +83,28 @@ autograd::TensorPtr HeavilyCompressedAttention::operator()(const autograd::Tenso
     auto q_heads = ops::permute(ops::reshape(q, ttnn::Shape({batch, seq, heads, head_dim})), kHeadsToFront);
     q_heads = (*m_q_norm)(q_heads);  // [B, n_h, S, c]
 
-    // Dense (causal) shared-KV MQA with attention sink.
-    auto causal = autograd::create_tensor(
-        compressed_causal_keep(seq, groups, m_config.compression_rate, &autograd::ctx().get_device()));
-    auto attn = ops::shared_kv_mqa_attention(q_heads, kv, m_sink_logits, causal);  // [B, n_h, S, c]
+    // Compressed-causal keep mask over the G compressed blocks.
+    auto compressed_mask = ops::compressed_causal_keep(seq, groups, m_config.compression_rate, device);  // [1,1,S,G]
 
-    return (*m_out_proj)(attn);  // [B, 1, S, d]
+    if (m_config.sliding_window == 0U) {
+        // Dense (causal) shared-KV MQA with attention sink, over compressed blocks.
+        auto causal = autograd::create_tensor(compressed_mask);
+        auto attn = ops::shared_kv_mqa_attention(q_heads, kv, m_sink_logits, causal);  // [B, n_h, S, c]
+        return (*m_out_proj)(attn);
+    }
+
+    // Sliding-window branch: recent uncompressed tokens, concatenated with the
+    // compressed entries as additional keys/values (§2.3.3).
+    auto win_kv = (*m_win_norm)((*m_w_win)(hidden));            // [B, 1, S, c]
+    auto combined_kv = ops::concat({win_kv, kv}, /* dim */ 2);  // [B, 1, S+G, c]
+
+    // Combined keep mask [B, 1, S, S+G] = [sliding-window-causal | compressed-causal].
+    auto window_mask = ops::sliding_window_keep(seq, m_config.sliding_window, device);  // [1,1,S,S]
+    auto combined_raw = ttnn::concat(std::vector<ttnn::Tensor>{window_mask, compressed_mask}, /* dim */ 3);
+    auto combined_mask = autograd::create_tensor(ttnn::repeat(combined_raw, ttnn::Shape({batch, 1, 1, 1})));
+
+    auto attn = ops::shared_kv_mqa_attention(q_heads, combined_kv, m_sink_logits, combined_mask);  // [B, n_h, S, c]
+    return (*m_out_proj)(attn);                                                                    // [B, 1, S, d]
 }
 
 }  // namespace ttml::modules

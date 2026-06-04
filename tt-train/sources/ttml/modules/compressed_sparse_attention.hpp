@@ -33,9 +33,12 @@ namespace ttml::modules {
 // last_index_scores() exposes the differentiable scores I so the training loop
 // can add the indexer's auxiliary loss (top-k selection itself is non-diff).
 //
-// Deferred refinements (in the paper): partial RoPE with the -i output trick, the
-// sliding-window branch, and sharing the low-rank latent c^Q between the indexer
-// queries and the main attention queries (currently separate projections).
+// When sliding_window > 0, each query also attends (causally) to the most recent
+// sliding_window uncompressed tokens, concatenated with the selected compressed
+// entries before the core attention (§2.3.3). sliding_window = 0 disables it.
+//
+// Deferred refinement (in the paper): partial RoPE with the -i output trick. The
+// low-rank latent c^Q is shared between the indexer and main queries (eq 18).
 struct CompressedSparseAttentionConfig {
     uint32_t dim{0};               // d
     uint32_t num_heads{0};         // n_h
@@ -47,6 +50,7 @@ struct CompressedSparseAttentionConfig {
     uint32_t top_k{0};             // k
     uint32_t num_groups{0};        // g
     uint32_t group_inter_dim{0};   // d_g
+    uint32_t sliding_window{0};    // n_win, recent uncompressed tokens (0 = disabled)
 };
 
 class CompressedSparseAttention : public ModuleBase {
@@ -71,7 +75,9 @@ private:
     std::shared_ptr<LinearLayer> m_w_uq;  // d_c -> n_h * c
     std::shared_ptr<RMSNormLayer> m_q_norm;
     std::shared_ptr<RMSNormLayer> m_kv_norm;
-    autograd::TensorPtr m_sink_logits;  // [1, n_h, 1, 1]
+    std::shared_ptr<LinearLayer> m_w_win;      // sliding-window KV projection: d -> c (optional)
+    std::shared_ptr<RMSNormLayer> m_win_norm;  // RMSNorm on window KV (optional)
+    autograd::TensorPtr m_sink_logits;         // [1, n_h, 1, 1]
     std::shared_ptr<GroupedOutputProjection> m_out_proj;
 
     autograd::TensorPtr m_last_index_scores;

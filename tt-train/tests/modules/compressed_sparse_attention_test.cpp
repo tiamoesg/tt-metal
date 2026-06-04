@@ -80,3 +80,39 @@ TEST_F(CompressedSparseAttentionTest, ForwardShapeAndBackward) {
     EXPECT_TRUE(params.at("compressed_sparse_attention/out_proj/out_proj/weight")->is_grad_initialized());
     EXPECT_TRUE(hidden->is_grad_initialized());
 }
+
+// With the sliding-window branch enabled, CSA keeps its shape and the window KV
+// projection receives gradients (the main loss alone trains it -- the window KV
+// is part of the differentiable attention path, unlike the top-k selection).
+TEST_F(CompressedSparseAttentionTest, SlidingWindowForwardAndBackward) {
+    auto* device = &ttml::autograd::ctx().get_device();
+    const uint32_t seq = 1024;
+    const uint32_t dim = 64;
+
+    ttml::modules::CompressedSparseAttentionConfig config;
+    config.dim = dim;
+    config.num_heads = 4;
+    config.head_dim = 32;
+    config.query_comp_dim = 32;
+    config.compression_rate = 32;  // m -> G = 32
+    config.index_head_dim = 32;
+    config.num_index_heads = 2;
+    config.top_k = 8;
+    config.num_groups = 2;
+    config.group_inter_dim = 16;
+    config.sliding_window = 128;  // recent 128 uncompressed tokens
+    auto attn = ttml::modules::CompressedSparseAttention(config);
+
+    auto hidden = ttml::autograd::create_tensor(ttml::core::ones(ttnn::Shape({1, 1, seq, dim}), device), true);
+    auto out = attn(hidden);
+    EXPECT_EQ(out->get_value().logical_shape()[2], seq);
+    EXPECT_EQ(out->get_value().logical_shape()[3], dim);
+
+    auto target = ttml::autograd::create_tensor(ttml::core::zeros(out->get_value().logical_shape(), device));
+    auto loss = ttml::ops::mse_loss(out, target);
+    loss->backward();
+
+    auto params = attn.parameters();
+    EXPECT_TRUE(params.at("compressed_sparse_attention/w_win/weight")->is_grad_initialized());
+    EXPECT_TRUE(hidden->is_grad_initialized());
+}

@@ -31,9 +31,11 @@ namespace ttml::modules {
 // attention logits (so the sink-softmax is computed without max-subtraction), and
 // the attention sink keeps causally-empty early rows numerically safe.
 //
-// Not yet wired (follow-up refinements, both noted in the paper): partial RoPE
-// with the -i output trick, and the sliding-window branch of recent uncompressed
-// tokens.
+// When sliding_window > 0, each query additionally attends (causally) to the most
+// recent `sliding_window` uncompressed tokens, concatenated with the compressed
+// KV entries before the core attention (§2.3.3). sliding_window = 0 disables it.
+//
+// Not yet wired (paper refinement): partial RoPE with the -i output trick.
 struct HeavilyCompressedAttentionConfig {
     uint32_t dim{0};               // d, hidden size
     uint32_t num_heads{0};         // n_h, query heads
@@ -42,6 +44,7 @@ struct HeavilyCompressedAttentionConfig {
     uint32_t compression_rate{0};  // m', tokens pooled per compressed entry
     uint32_t num_groups{0};        // g, grouped output projection groups
     uint32_t group_inter_dim{0};   // d_g, grouped output intermediate dim
+    uint32_t sliding_window{0};    // n_win, recent uncompressed tokens (0 = disabled)
 };
 
 class HeavilyCompressedAttention : public ModuleBase {
@@ -58,7 +61,9 @@ private:
     std::shared_ptr<LinearLayer> m_w_uq;  // d_c -> n_h * c
     std::shared_ptr<RMSNormLayer> m_q_norm;
     std::shared_ptr<RMSNormLayer> m_kv_norm;
-    autograd::TensorPtr m_sink_logits;  // [1, n_h, 1, 1]
+    std::shared_ptr<LinearLayer> m_w_win;      // sliding-window KV projection: d -> c (optional)
+    std::shared_ptr<RMSNormLayer> m_win_norm;  // RMSNorm on window KV (optional)
+    autograd::TensorPtr m_sink_logits;         // [1, n_h, 1, 1]
     std::shared_ptr<GroupedOutputProjection> m_out_proj;
 };
 
