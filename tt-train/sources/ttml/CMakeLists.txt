@@ -25,6 +25,8 @@ set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/models/distributed/gpt2.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/models/distributed/llama.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/models/distributed/pipeline_parallel_llama.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/models/deepseek_v4.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/models/deepseek_v4.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/models/gpt2.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/models/linear_regression.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/models/llama.cpp
