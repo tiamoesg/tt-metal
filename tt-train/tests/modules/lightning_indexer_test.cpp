@@ -55,10 +55,12 @@ TEST_F(LightningIndexerTest, IndexScoresShapeAndBackward) {
     auto indexer = ttml::modules::LightningIndexer(make_config());
 
     auto hidden = ttml::autograd::create_tensor(ttml::core::ones(ttnn::Shape({kBatch, 1, kSeq, kDim}), device), true);
+    auto latent =
+        ttml::autograd::create_tensor(ttml::core::ones(ttnn::Shape({kBatch, 1, kSeq, kQueryDim}), device), true);
     auto keys =
         ttml::autograd::create_tensor(ttml::core::ones(ttnn::Shape({kBatch, 1, kGroups, kHeadDim}), device), true);
 
-    auto scores = indexer.index_scores(hidden, keys);
+    auto scores = indexer.index_scores(hidden, latent, keys);
     const auto shape = scores->get_value().logical_shape();
     EXPECT_EQ(shape[0], kBatch);
     EXPECT_EQ(shape[1], 1U);
@@ -70,9 +72,9 @@ TEST_F(LightningIndexerTest, IndexScoresShapeAndBackward) {
     loss->backward();
 
     auto params = indexer.parameters();
-    EXPECT_TRUE(params.at("lightning_indexer/w_dq/weight")->is_grad_initialized());
     EXPECT_TRUE(params.at("lightning_indexer/w_iuq/weight")->is_grad_initialized());
     EXPECT_TRUE(params.at("lightning_indexer/w_w/weight")->is_grad_initialized());
+    EXPECT_TRUE(latent->is_grad_initialized());
 }
 
 // The selection mask must be 0/1, respect the compressed-causal constraint
@@ -82,10 +84,12 @@ TEST_F(LightningIndexerTest, SelectionMaskCausalAndTopK) {
     auto indexer = ttml::modules::LightningIndexer(make_config());
 
     auto hidden = ttml::autograd::create_tensor(ttml::core::ones(ttnn::Shape({kBatch, 1, kSeq, kDim}), device), true);
+    auto latent =
+        ttml::autograd::create_tensor(ttml::core::ones(ttnn::Shape({kBatch, 1, kSeq, kQueryDim}), device), true);
     auto keys =
         ttml::autograd::create_tensor(ttml::core::ones(ttnn::Shape({kBatch, 1, kGroups, kHeadDim}), device), true);
 
-    auto scores = indexer.index_scores(hidden, keys);
+    auto scores = indexer.index_scores(hidden, latent, keys);
     auto mask = indexer.selection_mask(scores);
     auto values = ttml::core::to_vector(mask);  // [S, G] row-major
 

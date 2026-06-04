@@ -75,13 +75,17 @@ autograd::TensorPtr CompressedSparseAttention::operator()(const autograd::Tensor
     auto kv = (*m_kv_norm)((*m_kv_compressor)(hidden));  // [B, 1, G, c]
     auto idx_keys = (*m_idx_key_compressor)(hidden);     // [B, 1, G, c^I]
 
+    // Shared low-rank query latent c^Q = h W^DQ (eq 13), used by BOTH the indexer
+    // queries (eq 14) and the main attention queries (eq 18).
+    auto latent = (*m_w_dq)(hidden);  // [B, 1, S, d_c]
+
     // Lightning indexer -> differentiable scores (for the aux loss) and 0/1 top-k
     // selection mask (stop-gradient).
-    m_last_index_scores = m_indexer->index_scores(hidden, idx_keys);  // [B, 1, S, G]
+    m_last_index_scores = m_indexer->index_scores(hidden, latent, idx_keys);  // [B, 1, S, G]
     auto keep_mask = autograd::create_tensor(m_indexer->selection_mask(m_last_index_scores));
 
-    // Low-rank query generation, split into heads, per-head RMSNorm.
-    auto q = (*m_w_uq)((*m_w_dq)(hidden));  // [B, 1, S, n_h*c]
+    // Main queries from the same latent, split into heads, per-head RMSNorm.
+    auto q = (*m_w_uq)(latent);  // [B, 1, S, n_h*c]
     auto q_heads = ops::permute(ops::reshape(q, ttnn::Shape({batch, seq, heads, head_dim})), kHeadsToFront);
     q_heads = (*m_q_norm)(q_heads);  // [B, n_h, S, c]
 

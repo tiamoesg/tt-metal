@@ -53,31 +53,28 @@ LightningIndexer::LightningIndexer(const LightningIndexerConfig& config) : m_con
     }
 
     create_name("lightning_indexer");
-    m_w_dq = std::make_shared<LinearLayer>(m_config.dim, m_config.index_query_dim, /* has_bias */ false);
     m_w_iuq = std::make_shared<LinearLayer>(
         m_config.index_query_dim, m_config.index_head_dim * m_config.num_index_heads, /* has_bias */ false);
     m_w_w = std::make_shared<LinearLayer>(m_config.dim, m_config.num_index_heads, /* has_bias */ false);
-    register_module(m_w_dq, "w_dq");
     register_module(m_w_iuq, "w_iuq");
     register_module(m_w_w, "w_w");
 }
 
 autograd::TensorPtr LightningIndexer::index_scores(
-    const autograd::TensorPtr& query_hidden, const autograd::TensorPtr& index_keys) {
-    const auto qshape = query_hidden->get_value().logical_shape().to_array_4D();
+    const autograd::TensorPtr& hidden, const autograd::TensorPtr& latent, const autograd::TensorPtr& index_keys) {
+    const auto qshape = hidden->get_value().logical_shape().to_array_4D();
     const uint32_t batch = qshape[0];
     const uint32_t seq = qshape[2];
     const uint32_t groups = index_keys->get_value().logical_shape().to_array_4D()[2];
     const uint32_t heads = m_config.num_index_heads;
     const uint32_t head_dim = m_config.index_head_dim;
 
-    // Low-rank indexer queries: c^Q = h W^DQ, q^I = c^Q W^IUQ -> per-head [B, H, S, c^I].
-    auto cq = (*m_w_dq)(query_hidden);  // [B, 1, S, d_c]
-    auto qi = (*m_w_iuq)(cq);           // [B, 1, S, H * c^I]
+    // Indexer queries from the shared latent: q^I = c^Q W^IUQ -> per-head [B, H, S, c^I].
+    auto qi = (*m_w_iuq)(latent);  // [B, 1, S, H * c^I]
     auto qi_h = ops::permute(ops::reshape(qi, ttnn::Shape({batch, seq, heads, head_dim})), kHeadsToFront);
 
     // Per-head weights w^I = h W^w -> [B, H, S, 1].
-    auto wi = (*m_w_w)(query_hidden);  // [B, 1, S, H]
+    auto wi = (*m_w_w)(hidden);  // [B, 1, S, H]
     auto wi_h = ops::permute(ops::reshape(wi, ttnn::Shape({batch, seq, heads, 1U})), kHeadsToFront);
 
     // Index keys are shared across heads: broadcast [B, 1, G, c^I] -> [B, H, G, c^I].
