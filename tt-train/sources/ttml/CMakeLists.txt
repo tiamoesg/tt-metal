@@ -82,6 +82,8 @@ set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/ops/rmsnorm_op.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ops/newton_schulz_op.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ops/newton_schulz_op.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ops/partial_rope_op.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ops/partial_rope_op.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ops/permute_op.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ops/permute_op.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ops/rope_op.cpp

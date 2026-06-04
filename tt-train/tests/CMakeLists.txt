@@ -78,6 +78,7 @@ set(SOURCES
     ops/silu_op_test.cpp
     ops/sdpa_fw_op_test.cpp
     ops/attention_masks_test.cpp
+    ops/partial_rope_test.cpp
     ops/sink_attention_test.cpp
     ops/slice_concat_test.cpp
     ops/sdpa_bw_op_test.cpp
