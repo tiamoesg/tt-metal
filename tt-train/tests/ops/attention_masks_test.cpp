@@ -31,7 +31,7 @@ TEST_F(AttentionMasksTest, CompressedCausal) {
     auto mask = ttml::ops::compressed_causal_keep(seq, groups, rate, device);
     auto v = ttml::core::to_vector(mask);  // [S, G]
     for (uint32_t t = 0; t < seq; ++t) {
-        const uint32_t allowed = t / rate;
+        const uint32_t allowed = (t + 1U) / rate;
         for (uint32_t s = 0; s < groups; ++s) {
             const float expected = (s < allowed) ? 1.0F : 0.0F;
             EXPECT_EQ(v[static_cast<size_t>(t) * groups + s], expected) << "t=" << t << " s=" << s;

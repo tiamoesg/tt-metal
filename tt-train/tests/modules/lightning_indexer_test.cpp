@@ -94,7 +94,7 @@ TEST_F(LightningIndexerTest, SelectionMaskCausalAndTopK) {
     auto values = ttml::core::to_vector(mask);  // [S, G] row-major
 
     for (uint32_t t = 0; t < kSeq; ++t) {
-        const uint32_t allowed = t / kRate;
+        const uint32_t allowed = (t + 1U) / kRate;
         uint32_t row_sum = 0;
         for (uint32_t s = 0; s < kGroups; ++s) {
             const float v = values[static_cast<size_t>(t) * kGroups + s];
