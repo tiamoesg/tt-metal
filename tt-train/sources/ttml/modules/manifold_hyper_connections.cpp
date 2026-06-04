@@ -26,22 +26,23 @@ namespace {
 const ttnn::SmallVector<int64_t> kSwapStreamsSeq = {0, 2, 1, 3};
 
 // Project a raw [.., .., n, n] score matrix onto the manifold of doubly-stochastic
-// matrices (the Birkhoff polytope) via Sinkhorn-Knopp:
-//   M^(0) = exp(raw); then alternate row- and column-normalization for t_max
-//   iterations. The result B satisfies B 1 = 1 and 1^T B = 1^T, so ||B||_2 <= 1
-//   and the residual mixing is non-expansive (the core mHC stability property).
-// Fully differentiable: every step is an autograd op, so gradients reach raw.
-// Works for any leading dims (global [1,1,n,n] or per-token [M,1,n,n]).
+// matrices (the Birkhoff polytope) via Sinkhorn-Knopp. Following the mHC paper
+// (Xie et al., 2026, eq 9), M^(0) = exp(raw) and each iteration is
+// M^(t) = T_r( T_c( M^(t-1) ) ): column-normalize first, then row-normalize, for
+// t_max iterations. The result B satisfies B 1 = 1 and 1^T B = 1^T, so
+// ||B||_2 <= 1 and the residual mixing is non-expansive (the core mHC stability
+// property). Fully differentiable: every step is an autograd op, so gradients
+// reach raw. Works for any leading dims (global [1,1,n,n] or per-token [M,1,n,n]).
 autograd::TensorPtr sinkhorn_knopp(const autograd::TensorPtr& raw, uint32_t iters) {
     const auto full_shape = raw->get_value().logical_shape();
     auto m = ops::exp(raw);  // ensure positivity
     for (uint32_t i = 0; i < iters; ++i) {
-        // Row normalization: divide each row by its sum over the last dim.
-        auto row_sums = ops::sum(m, /* dim */ -1, /* keep_dim */ true);
-        m = ops::div(m, ops::broadcast_to(row_sums, full_shape));
-        // Column normalization: divide each column by its sum over the -2 dim.
+        // T_c: column normalization (divide each column by its sum over dim -2).
         auto col_sums = ops::sum(m, /* dim */ -2, /* keep_dim */ true);
         m = ops::div(m, ops::broadcast_to(col_sums, full_shape));
+        // T_r: row normalization (divide each row by its sum over the last dim).
+        auto row_sums = ops::sum(m, /* dim */ -1, /* keep_dim */ true);
+        m = ops::div(m, ops::broadcast_to(row_sums, full_shape));
     }
     return m;
 }
