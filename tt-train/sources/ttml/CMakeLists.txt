@@ -34,6 +34,7 @@ set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/modules/distributed/linear.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/modules/distributed/llama_block.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/modules/distributed/multi_head_attention.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/modules/compressed_sparse_attention.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/modules/dropout_module.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/modules/embedding_module.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/modules/gpt_block.cpp

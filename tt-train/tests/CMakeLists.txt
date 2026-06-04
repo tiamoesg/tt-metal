@@ -43,6 +43,7 @@ set(SOURCES
     optimizers/adamw_full_precision_test.cpp
     optimizers/no_op_test.cpp
     modules/distributed/linear_test.cpp
+    modules/compressed_sparse_attention_test.cpp
     modules/grouped_output_projection_test.cpp
     modules/heavily_compressed_attention_test.cpp
     modules/kv_compressor_test.cpp
