@@ -49,6 +49,7 @@ set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/modules/module_base.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/modules/multi_head_attention.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/modules/multi_layer_perceptron.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/modules/overlapping_kv_compressor.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/modules/positional_embeddings.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/modules/rms_norm_module.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/modules/rotary_embedding.cpp

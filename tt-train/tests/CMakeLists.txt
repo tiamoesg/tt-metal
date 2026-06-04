@@ -48,6 +48,7 @@ set(SOURCES
     modules/kv_compressor_test.cpp
     modules/lightning_indexer_test.cpp
     modules/manifold_hyper_connections_test.cpp
+    modules/overlapping_kv_compressor_test.cpp
     serialization/model_serializer_test.cpp
     serialization/flatbuffer_serializer_test.cpp
     serialization/tensor_serializer_test.cpp
