@@ -37,6 +37,7 @@ set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/modules/dropout_module.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/modules/embedding_module.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/modules/gpt_block.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/modules/grouped_output_projection.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/modules/grouped_query_attention.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/modules/kv_compressor.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/modules/layer_norm_module.cpp
