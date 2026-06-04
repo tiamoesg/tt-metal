@@ -46,6 +46,7 @@ set(SOURCES
     modules/compressed_sparse_attention_test.cpp
     modules/grouped_output_projection_test.cpp
     modules/heavily_compressed_attention_test.cpp
+    modules/hybrid_attention_test.cpp
     modules/kv_compressor_test.cpp
     modules/lightning_indexer_test.cpp
     modules/manifold_hyper_connections_test.cpp
