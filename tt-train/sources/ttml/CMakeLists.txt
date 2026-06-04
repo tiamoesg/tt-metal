@@ -52,6 +52,10 @@ set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/modules/rotary_embedding.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/modules/single_head_attention.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ops/binary_ops.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ops/concat_op.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ops/concat_op.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ops/slice_op.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ops/slice_op.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ops/distributed/comm_ops.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ops/distributed/losses.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ops/distributed/losses.hpp
