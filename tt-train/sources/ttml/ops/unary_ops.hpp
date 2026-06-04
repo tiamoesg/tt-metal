@@ -27,4 +27,6 @@ autograd::TensorPtr log_softmax_moreh(const autograd::TensorPtr& tensor, int dim
 autograd::TensorPtr softmax(const autograd::TensorPtr& tensor, int dim);
 autograd::TensorPtr exp(const autograd::TensorPtr& tensor);
 autograd::TensorPtr clip(const autograd::TensorPtr& tensor, float lo, float hi);
+autograd::TensorPtr sqrt(const autograd::TensorPtr& tensor);
+autograd::TensorPtr softplus(const autograd::TensorPtr& tensor);
 }  // namespace ttml::ops

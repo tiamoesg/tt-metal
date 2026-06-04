@@ -45,6 +45,7 @@ set(SOURCES
     optimizers/no_op_test.cpp
     modules/distributed/linear_test.cpp
     modules/compressed_sparse_attention_test.cpp
+    modules/deepseek_moe_test.cpp
     modules/deepseek_v4_block_test.cpp
     modules/grouped_output_projection_test.cpp
     modules/heavily_compressed_attention_test.cpp

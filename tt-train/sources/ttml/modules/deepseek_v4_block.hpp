@@ -7,6 +7,7 @@
 #include <memory>
 
 #include "autograd/tensor.hpp"
+#include "modules/deepseek_moe.hpp"
 #include "modules/hybrid_attention.hpp"
 #include "modules/manifold_hyper_connections.hpp"
 #include "modules/module_base.hpp"
@@ -31,6 +32,9 @@ struct DeepSeekV4BlockConfig {
     uint32_t sinkhorn_iters{20};   // mHC t_max
     float alpha_init{1e-2F};       // mHC gating init
     HybridAttentionConfig attn{};  // CSA/HCA configuration for this layer
+    // FFN: dense SwiGLU (default) or a routed DeepSeekMoE when use_moe is set.
+    bool use_moe{false};
+    DeepSeekMoEConfig moe{};
 };
 
 class DeepSeekV4Block : public ModuleBase {

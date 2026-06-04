@@ -35,6 +35,9 @@ struct DeepSeekV4Config {
     float alpha_init{1e-2F};
     modules::HybridAttentionConfig attn{};  // csa and hca sub-configs both filled
     std::vector<bool> layer_sparse{};       // per-layer CSA(true)/HCA(false)
+    // FFN: dense SwiGLU (default) or routed DeepSeekMoE when use_moe is set.
+    bool use_moe{false};
+    modules::DeepSeekMoEConfig moe{};
 };
 
 class DeepSeekV4Transformer : public modules::ModuleBase {

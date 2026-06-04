@@ -26,7 +26,12 @@ DeepSeekV4Block::DeepSeekV4Block(const DeepSeekV4BlockConfig& config) {
     auto attention = std::make_shared<HybridAttention>(config.attn);
     m_attn_mhc = std::make_shared<ManifoldHyperConnections>(mhc_cfg, attention);
 
-    auto ffn = std::make_shared<SwiGLUMLP>(SwiGLUMLPConfig{.dim = config.dim, .inter_dim = config.ffn_inter_dim});
+    ModuleBasePtr ffn;
+    if (config.use_moe) {
+        ffn = std::make_shared<DeepSeekMoE>(config.moe);
+    } else {
+        ffn = std::make_shared<SwiGLUMLP>(SwiGLUMLPConfig{.dim = config.dim, .inter_dim = config.ffn_inter_dim});
+    }
     m_ffn_mhc = std::make_shared<ManifoldHyperConnections>(mhc_cfg, ffn);
 
     register_module(m_attn_mhc, "attn_mhc");

@@ -37,6 +37,8 @@ DeepSeekV4Transformer::DeepSeekV4Transformer(const DeepSeekV4Config& config) : m
         if (!config.layer_sparse.empty()) {
             block_cfg.attn.use_sparse = config.layer_sparse[i];
         }
+        block_cfg.use_moe = config.use_moe;
+        block_cfg.moe = config.moe;
         auto block = std::make_shared<modules::DeepSeekV4Block>(block_cfg);
         register_module(block, fmt::format("block_{}", i));
         m_blocks.push_back(std::move(block));

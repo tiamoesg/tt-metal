@@ -71,6 +71,42 @@ TEST_F(DeepSeekV4ModelTest, ForwardShape) {
     EXPECT_EQ(shape[3], vocab);
 }
 
+// Toggling the routed DeepSeekMoE FFN in via config composes end-to-end and stays
+// differentiable.
+TEST_F(DeepSeekV4ModelTest, ForwardWithMoE) {
+    auto* device = &ttml::autograd::ctx().get_device();
+    const uint32_t vocab = 64;
+    const uint32_t dim = 64;
+    const uint32_t batch = 1;
+    const uint32_t seq = 128;
+
+    auto cfg = make_config(vocab, dim);
+    cfg.use_moe = true;
+    cfg.moe.dim = dim;
+    cfg.moe.inter_dim = 128;
+    cfg.moe.num_routed_experts = 8;  // power of two
+    cfg.moe.num_activated = 2;
+    cfg.moe.num_shared_experts = 1;
+    cfg.moe.score_func = ttml::modules::MoEScoreFunc::SqrtSoftplus;
+    cfg.moe.route_scale = 2.5F;
+    auto model = ttml::models::deepseek_v4::DeepSeekV4Transformer(cfg);
+
+    std::vector<uint32_t> ids(static_cast<size_t>(batch) * seq);
+    for (size_t i = 0; i < ids.size(); ++i) {
+        ids[i] = static_cast<uint32_t>(i % vocab);
+    }
+    auto tokens = ttml::autograd::create_tensor(ttml::core::from_vector<uint32_t, ttnn::DataType::UINT32>(
+        ids, ttnn::Shape({batch, 1, 1, seq}), device, ttnn::Layout::ROW_MAJOR));
+
+    auto logits = model(tokens);
+    EXPECT_EQ(logits->get_value().logical_shape()[3], vocab);
+
+    auto target = ttml::autograd::create_tensor(ttml::core::zeros(logits->get_value().logical_shape(), device));
+    auto loss = ttml::ops::mse_loss(logits, target);
+    loss->backward();
+    SUCCEED();
+}
+
 // End-to-end trainability: overfit a tiny deterministic next-token task
 // (target = (id + 1) mod vocab) with Muon-V4; the cross-entropy loss must drop.
 TEST_F(DeepSeekV4ModelTest, TrainsWithMuonV4) {

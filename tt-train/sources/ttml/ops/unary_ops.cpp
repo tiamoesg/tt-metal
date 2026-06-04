@@ -203,6 +203,27 @@ autograd::TensorPtr softmax(const autograd::TensorPtr& tensor, int dim) {
     return out;
 }
 
+autograd::TensorPtr sqrt(const autograd::TensorPtr& tensor) {
+    auto out = autograd::create_tensor(ttnn::sqrt(tensor->get_value()));
+    autograd::GradFunction grad = [tensor, out]() {
+        // d/dx sqrt(x) = 0.5 / sqrt(x) = 0.5 / out.
+        auto local = ttnn::multiply(ttnn::reciprocal(out->get_value()), 0.5F);
+        tensor->add_grad(ttnn::multiply(out->get_grad(), local));
+    };
+    out->set_node(autograd::add_backward_node(std::move(grad), out, tensor));
+    return out;
+}
+
+autograd::TensorPtr softplus(const autograd::TensorPtr& tensor) {
+    auto out = autograd::create_tensor(ttnn::softplus(tensor->get_value(), /* beta */ 1.0F, /* threshold */ 20.0F));
+    autograd::GradFunction grad = [tensor, out]() {
+        // d/dx softplus(x) = sigmoid(x).
+        tensor->add_grad(ttnn::multiply(out->get_grad(), ttnn::sigmoid(tensor->get_value())));
+    };
+    out->set_node(autograd::add_backward_node(std::move(grad), out, tensor));
+    return out;
+}
+
 autograd::TensorPtr sigmoid(const autograd::TensorPtr& tensor) {
     auto out = autograd::create_tensor(ttnn::sigmoid(tensor->get_value()));
     autograd::GradFunction grad = [tensor, out]() {
