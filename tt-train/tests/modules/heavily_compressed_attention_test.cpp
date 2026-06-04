@@ -96,3 +96,33 @@ TEST_F(HeavilyCompressedAttentionTest, SlidingWindowForwardAndBackward) {
     EXPECT_TRUE(params.at("heavily_compressed_attention/w_win/weight")->is_grad_initialized());
     EXPECT_TRUE(hidden->is_grad_initialized());
 }
+
+// With partial RoPE enabled (last rope_head_dim dims rotated; output inverse-rotated),
+// the block keeps its shape and remains differentiable.
+TEST_F(HeavilyCompressedAttentionTest, PartialRopeForwardAndBackward) {
+    auto* device = &ttml::autograd::ctx().get_device();
+    const uint32_t seq = 128;
+    const uint32_t dim = 64;
+
+    ttml::modules::HeavilyCompressedAttentionConfig config;
+    config.dim = dim;
+    config.num_heads = 2;
+    config.head_dim = 64;  // c (> rope_head_dim)
+    config.query_comp_dim = 32;
+    config.compression_rate = 4;  // m' -> G = 32; compressed blocks at positions s*4
+    config.num_groups = 2;
+    config.group_inter_dim = 16;
+    config.rope_head_dim = 32;  // rotate the last 32 of the 64 head dims
+    config.rope_max_seq = seq;
+    auto attn = ttml::modules::HeavilyCompressedAttention(config);
+
+    auto hidden = ttml::autograd::create_tensor(ttml::core::ones(ttnn::Shape({1, 1, seq, dim}), device), true);
+    auto out = attn(hidden);
+    EXPECT_EQ(out->get_value().logical_shape()[2], seq);
+    EXPECT_EQ(out->get_value().logical_shape()[3], dim);
+
+    auto target = ttml::autograd::create_tensor(ttml::core::zeros(out->get_value().logical_shape(), device));
+    auto loss = ttml::ops::mse_loss(out, target);
+    loss->backward();
+    EXPECT_TRUE(hidden->is_grad_initialized());
+}

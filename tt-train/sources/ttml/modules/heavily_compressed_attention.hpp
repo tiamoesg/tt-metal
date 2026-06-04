@@ -12,6 +12,7 @@
 #include "modules/linear_module.hpp"
 #include "modules/module_base.hpp"
 #include "modules/rms_norm_module.hpp"
+#include "ops/rope_op.hpp"
 
 namespace ttml::modules {
 
@@ -45,6 +46,12 @@ struct HeavilyCompressedAttentionConfig {
     uint32_t num_groups{0};        // g, grouped output projection groups
     uint32_t group_inter_dim{0};   // d_g, grouped output intermediate dim
     uint32_t sliding_window{0};    // n_win, recent uncompressed tokens (0 = disabled)
+    // Partial RoPE (§2.3.3): rotate the last `rope_head_dim` dims of q / compressed
+    // KV / window KV, and inverse-rotate the output. 0 disables RoPE. Requires
+    // rope_head_dim < head_dim with (head_dim - rope_head_dim) tile-aligned.
+    uint32_t rope_head_dim{0};
+    float rope_theta{10000.0F};
+    uint32_t rope_max_seq{0};  // RoPE cache length; must be >= the sequence length used
 };
 
 class HeavilyCompressedAttention : public ModuleBase {
@@ -65,6 +72,9 @@ private:
     std::shared_ptr<RMSNormLayer> m_win_norm;  // RMSNorm on window KV (optional)
     autograd::TensorPtr m_sink_logits;         // [1, n_h, 1, 1]
     std::shared_ptr<GroupedOutputProjection> m_out_proj;
+
+    bool m_use_rope{false};
+    ops::RotaryEmbeddingParams m_rope_params;
 };
 
 }  // namespace ttml::modules

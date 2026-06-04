@@ -5,6 +5,7 @@
 #include "ops/rope_op.hpp"
 
 #include <numbers>
+#include <utility>
 
 #include "autograd/auto_context.hpp"
 #include "autograd/graph.hpp"
@@ -109,6 +110,46 @@ E apply_rope_scaling(const E& freqs, const RopeScalingParams& p) {
 
 // trans_mat, sin_cache, cos_cache are all precomputed and stored somewhere in
 // the module hierarchy and passed to the operation.
+namespace {
+// Slice a trig cache [1,1,seq,head_dim] along the sequence axis with the given
+// start/extent/step.
+ttnn::Tensor slice_seq(const ttnn::Tensor& cache, uint32_t start, uint32_t count, uint32_t step, uint32_t head_dim) {
+    const ttsl::SmallVector<uint32_t> s = {0U, 0U, start, 0U};
+    const ttsl::SmallVector<uint32_t> e = {1U, 1U, start + step * count, head_dim};
+    const ttsl::SmallVector<uint32_t> st = {1U, 1U, step, 1U};
+    return ttnn::slice(cache, s, e, st);
+}
+}  // namespace
+
+RotaryEmbeddingParams rope_params_prefix(const RotaryEmbeddingParams& params, uint32_t count) {
+    RotaryEmbeddingParams r = params;
+    r.cos_cache = slice_seq(params.cos_cache, 0U, count, 1U, params.head_dim);
+    r.sin_cache = slice_seq(params.sin_cache, 0U, count, 1U, params.head_dim);
+    r.neg_cos_cache = slice_seq(params.neg_cos_cache, 0U, count, 1U, params.head_dim);
+    r.neg_sin_cache = slice_seq(params.neg_sin_cache, 0U, count, 1U, params.head_dim);
+    r.sequence_length = count;
+    return r;
+}
+
+RotaryEmbeddingParams rope_params_strided(const RotaryEmbeddingParams& params, uint32_t stride, uint32_t count) {
+    RotaryEmbeddingParams r = params;
+    r.cos_cache = slice_seq(params.cos_cache, 0U, count, stride, params.head_dim);
+    r.sin_cache = slice_seq(params.sin_cache, 0U, count, stride, params.head_dim);
+    r.neg_cos_cache = slice_seq(params.neg_cos_cache, 0U, count, stride, params.head_dim);
+    r.neg_sin_cache = slice_seq(params.neg_sin_cache, 0U, count, stride, params.head_dim);
+    r.sequence_length = count;
+    return r;
+}
+
+RotaryEmbeddingParams rope_params_inverse(const RotaryEmbeddingParams& params) {
+    // Rotation by -theta: cos(-t)=cos, sin(-t)=-sin. Forward then uses the negated
+    // sin cache; backward (rotate by +theta) uses the original. cos == neg_cos.
+    RotaryEmbeddingParams r = params;
+    std::swap(r.cos_cache, r.neg_cos_cache);
+    std::swap(r.sin_cache, r.neg_sin_cache);
+    return r;
+}
+
 autograd::TensorPtr rope(
     const autograd::TensorPtr& input, const RotaryEmbeddingParams& params, const uint32_t token_position) {
     validate_rope_input_and_params(input, params);

@@ -13,6 +13,7 @@
 #include "modules/module_base.hpp"
 #include "modules/overlapping_kv_compressor.hpp"
 #include "modules/rms_norm_module.hpp"
+#include "ops/rope_op.hpp"
 
 namespace ttml::modules {
 
@@ -51,6 +52,12 @@ struct CompressedSparseAttentionConfig {
     uint32_t num_groups{0};        // g
     uint32_t group_inter_dim{0};   // d_g
     uint32_t sliding_window{0};    // n_win, recent uncompressed tokens (0 = disabled)
+    // Partial RoPE (§2.3.3) on the main attention path: queries at token positions,
+    // compressed blocks at s*ratio, output inverse-rotated. 0 disables. (The
+    // indexer's internal RoPE -- selection only -- is a further refinement.)
+    uint32_t rope_head_dim{0};
+    float rope_theta{10000.0F};
+    uint32_t rope_max_seq{0};
 };
 
 class CompressedSparseAttention : public ModuleBase {
@@ -79,6 +86,9 @@ private:
     std::shared_ptr<RMSNormLayer> m_win_norm;  // RMSNorm on window KV (optional)
     autograd::TensorPtr m_sink_logits;         // [1, n_h, 1, 1]
     std::shared_ptr<GroupedOutputProjection> m_out_proj;
+
+    bool m_use_rope{false};
+    ops::RotaryEmbeddingParams m_rope_params;
 
     autograd::TensorPtr m_last_index_scores;
 };

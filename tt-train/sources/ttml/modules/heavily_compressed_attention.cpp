@@ -14,8 +14,10 @@
 #include "core/tt_tensor_utils.hpp"
 #include "ops/attention_masks.hpp"
 #include "ops/concat_op.hpp"
+#include "ops/partial_rope_op.hpp"
 #include "ops/permute_op.hpp"
 #include "ops/reshape_op.hpp"
+#include "ops/rope_op.hpp"
 #include "ops/sink_attention.hpp"
 
 namespace ttml::modules {
@@ -63,6 +65,15 @@ HeavilyCompressedAttention::HeavilyCompressedAttention(const HeavilyCompressedAt
         register_module(m_w_win, "w_win");
         register_module(m_win_norm, "win_norm");
     }
+
+    if (m_config.rope_head_dim > 0U) {
+        if (m_config.rope_head_dim >= m_config.head_dim || m_config.rope_max_seq == 0U) {
+            throw std::invalid_argument(
+                "HeavilyCompressedAttention: rope_head_dim must be < head_dim and rope_max_seq must be set.");
+        }
+        m_rope_params = ops::build_rope_params(m_config.rope_max_seq, m_config.rope_head_dim, m_config.rope_theta);
+        m_use_rope = true;
+    }
 }
 
 autograd::TensorPtr HeavilyCompressedAttention::operator()(const autograd::TensorPtr& hidden) {
@@ -83,28 +94,45 @@ autograd::TensorPtr HeavilyCompressedAttention::operator()(const autograd::Tenso
     auto q_heads = ops::permute(ops::reshape(q, ttnn::Shape({batch, seq, heads, head_dim})), kHeadsToFront);
     q_heads = (*m_q_norm)(q_heads);  // [B, n_h, S, c]
 
+    // Partial RoPE (§2.3.3): queries at token positions, compressed blocks at the
+    // strided positions s*ratio; the output is later inverse-rotated (the -i trick).
+    if (m_use_rope) {
+        const auto query_rope = ops::rope_params_prefix(m_rope_params, seq);
+        q_heads = ops::partial_rope(q_heads, query_rope, /* token_position */ 0);
+        const auto block_rope = ops::rope_params_strided(m_rope_params, m_config.compression_rate, groups);
+        kv = ops::partial_rope(kv, block_rope, /* token_position */ 0);
+    }
+
     // Compressed-causal keep mask over the G compressed blocks.
     auto compressed_mask = ops::compressed_causal_keep(seq, groups, m_config.compression_rate, device);  // [1,1,S,G]
 
+    autograd::TensorPtr attn;
     if (m_config.sliding_window == 0U) {
         // Dense (causal) shared-KV MQA with attention sink, over compressed blocks.
         auto causal = autograd::create_tensor(compressed_mask);
-        auto attn = ops::shared_kv_mqa_attention(q_heads, kv, m_sink_logits, causal);  // [B, n_h, S, c]
-        return (*m_out_proj)(attn);
+        attn = ops::shared_kv_mqa_attention(q_heads, kv, m_sink_logits, causal);  // [B, n_h, S, c]
+    } else {
+        // Sliding-window branch: recent uncompressed tokens (RoPE'd at their token
+        // positions), concatenated with the compressed entries (§2.3.3).
+        auto win_kv = (*m_win_norm)((*m_w_win)(hidden));  // [B, 1, S, c]
+        if (m_use_rope) {
+            win_kv = ops::partial_rope(win_kv, ops::rope_params_prefix(m_rope_params, seq), 0);
+        }
+        auto combined_kv = ops::concat({win_kv, kv}, /* dim */ 2);  // [B, 1, S+G, c]
+
+        // Combined keep mask [B, 1, S, S+G] = [sliding-window-causal | compressed-causal].
+        auto window_mask = ops::sliding_window_keep(seq, m_config.sliding_window, device);  // [1,1,S,S]
+        auto combined_raw = ttnn::concat(std::vector<ttnn::Tensor>{window_mask, compressed_mask}, /* dim */ 3);
+        auto combined_mask = autograd::create_tensor(ttnn::repeat(combined_raw, ttnn::Shape({batch, 1, 1, 1})));
+        attn = ops::shared_kv_mqa_attention(q_heads, combined_kv, m_sink_logits, combined_mask);  // [B, n_h, S, c]
     }
 
-    // Sliding-window branch: recent uncompressed tokens, concatenated with the
-    // compressed entries as additional keys/values (§2.3.3).
-    auto win_kv = (*m_win_norm)((*m_w_win)(hidden));            // [B, 1, S, c]
-    auto combined_kv = ops::concat({win_kv, kv}, /* dim */ 2);  // [B, 1, S+G, c]
-
-    // Combined keep mask [B, 1, S, S+G] = [sliding-window-causal | compressed-causal].
-    auto window_mask = ops::sliding_window_keep(seq, m_config.sliding_window, device);  // [1,1,S,S]
-    auto combined_raw = ttnn::concat(std::vector<ttnn::Tensor>{window_mask, compressed_mask}, /* dim */ 3);
-    auto combined_mask = autograd::create_tensor(ttnn::repeat(combined_raw, ttnn::Shape({batch, 1, 1, 1})));
-
-    auto attn = ops::shared_kv_mqa_attention(q_heads, combined_kv, m_sink_logits, combined_mask);  // [B, n_h, S, c]
-    return (*m_out_proj)(attn);                                                                    // [B, 1, S, d]
+    // The "-i" output trick: inverse-rotate the output's last dims at query
+    // positions so the value-carried absolute positions become relative.
+    if (m_use_rope) {
+        attn = ops::partial_rope(attn, ops::rope_params_inverse(ops::rope_params_prefix(m_rope_params, seq)), 0);
+    }
+    return (*m_out_proj)(attn);  // [B, 1, S, d]
 }
 
 }  // namespace ttml::modules

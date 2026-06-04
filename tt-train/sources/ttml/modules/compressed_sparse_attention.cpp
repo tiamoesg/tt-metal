@@ -11,8 +11,10 @@
 #include "core/tt_tensor_utils.hpp"
 #include "ops/attention_masks.hpp"
 #include "ops/concat_op.hpp"
+#include "ops/partial_rope_op.hpp"
 #include "ops/permute_op.hpp"
 #include "ops/reshape_op.hpp"
+#include "ops/rope_op.hpp"
 #include "ops/sink_attention.hpp"
 
 namespace ttml::modules {
@@ -71,6 +73,15 @@ CompressedSparseAttention::CompressedSparseAttention(const CompressedSparseAtten
         register_module(m_w_win, "w_win");
         register_module(m_win_norm, "win_norm");
     }
+
+    if (m_config.rope_head_dim > 0U) {
+        if (m_config.rope_head_dim >= m_config.head_dim || m_config.rope_max_seq == 0U) {
+            throw std::invalid_argument(
+                "CompressedSparseAttention: rope_head_dim must be < head_dim and rope_max_seq must be set.");
+        }
+        m_rope_params = ops::build_rope_params(m_config.rope_max_seq, m_config.rope_head_dim, m_config.rope_theta);
+        m_use_rope = true;
+    }
 }
 
 autograd::TensorPtr CompressedSparseAttention::operator()(const autograd::TensorPtr& hidden) {
@@ -98,10 +109,21 @@ autograd::TensorPtr CompressedSparseAttention::operator()(const autograd::Tensor
     auto q_heads = ops::permute(ops::reshape(q, ttnn::Shape({batch, seq, heads, head_dim})), kHeadsToFront);
     q_heads = (*m_q_norm)(q_heads);  // [B, n_h, S, c]
 
+    // Partial RoPE on the main path: queries at token positions, compressed blocks
+    // at s*ratio. (The selection mask above is computed on the un-rotated scores.)
+    if (m_use_rope) {
+        q_heads = ops::partial_rope(q_heads, ops::rope_params_prefix(m_rope_params, seq), 0);
+        const uint32_t groups = kv->get_value().logical_shape().to_array_4D()[2];
+        kv = ops::partial_rope(kv, ops::rope_params_strided(m_rope_params, m_config.compression_rate, groups), 0);
+    }
+
     if (m_config.sliding_window == 0U) {
         // Sparse shared-KV MQA with attention sink (mask selects the top-k blocks).
         auto keep_mask = autograd::create_tensor(selection);
         auto attn = ops::shared_kv_mqa_attention(q_heads, kv, m_sink_logits, keep_mask);  // [B, n_h, S, c]
+        if (m_use_rope) {                                                                 // "-i" output trick
+            attn = ops::partial_rope(attn, ops::rope_params_inverse(ops::rope_params_prefix(m_rope_params, seq)), 0);
+        }
         return (*m_out_proj)(attn);
     }
 
@@ -118,7 +140,10 @@ autograd::TensorPtr CompressedSparseAttention::operator()(const autograd::Tensor
         autograd::create_tensor(ttnn::concat(std::vector<ttnn::Tensor>{window_mask_b, selection}, /* dim */ 3));
 
     auto attn = ops::shared_kv_mqa_attention(q_heads, combined_kv, m_sink_logits, combined_mask);  // [B, n_h, S, c]
-    return (*m_out_proj)(attn);                                                                    // [B, 1, S, d]
+    if (m_use_rope) {                                                                              // "-i" output trick
+        attn = ops::partial_rope(attn, ops::rope_params_inverse(ops::rope_params_prefix(m_rope_params, seq)), 0);
+    }
+    return (*m_out_proj)(attn);  // [B, 1, S, d]
 }
 
 }  // namespace ttml::modules
