@@ -44,6 +44,7 @@ set(SOURCES
     optimizers/no_op_test.cpp
     modules/distributed/linear_test.cpp
     modules/grouped_output_projection_test.cpp
+    modules/heavily_compressed_attention_test.cpp
     modules/kv_compressor_test.cpp
     modules/lightning_indexer_test.cpp
     modules/manifold_hyper_connections_test.cpp
