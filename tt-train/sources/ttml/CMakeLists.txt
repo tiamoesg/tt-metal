@@ -35,6 +35,7 @@ set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/modules/distributed/llama_block.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/modules/distributed/multi_head_attention.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/modules/compressed_sparse_attention.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/modules/deepseek_v4_block.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/modules/dropout_module.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/modules/embedding_module.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/modules/gpt_block.cpp
@@ -56,6 +57,7 @@ set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/modules/rms_norm_module.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/modules/rotary_embedding.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/modules/single_head_attention.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/modules/swiglu_mlp.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ops/attention_masks.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ops/attention_masks.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ops/binary_ops.cpp

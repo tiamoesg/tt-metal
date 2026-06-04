@@ -63,6 +63,11 @@ ManifoldHyperConnections::ManifoldHyperConnections(
     create_name("manifold_hyper_connections");
     register_module(m_inner_layer, "inner_layer");
 
+    if (m_config.layer_norm) {
+        m_layer_norm = std::make_shared<RMSNormLayer>(m_config.hidden_dim);
+        register_module(m_layer_norm, "layer_norm");
+    }
+
     if (!m_config.dynamic_parameterization) {
         // Static: raw parameters initialized to zero. At init this gives A = 0.5,
         // C = 1, and B = a uniform doubly-stochastic matrix (every entry 1/n),
@@ -136,7 +141,9 @@ autograd::TensorPtr ManifoldHyperConnections::forward(
 
 autograd::TensorPtr ManifoldHyperConnections::run_inner(
     const autograd::TensorPtr& x, const std::optional<autograd::TensorPtr>& mask) {
-    return mask.has_value() ? (*m_inner_layer)(x, mask) : (*m_inner_layer)(x);
+    // Optional pre-sublayer RMSNorm on the combined A*X (the V4 attn_norm/ffn_norm).
+    auto inp = m_layer_norm ? (*m_layer_norm)(x) : x;
+    return mask.has_value() ? (*m_inner_layer)(inp, mask) : (*m_inner_layer)(inp);
 }
 
 autograd::TensorPtr ManifoldHyperConnections::compute_static(

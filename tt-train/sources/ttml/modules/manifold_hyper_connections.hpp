@@ -48,6 +48,9 @@ struct ManifoldHyperConnectionsConfig {
     uint32_t sinkhorn_iters{20};  // t_max
     float alpha_init{1e-2F};      // initial value of the dynamic gating factors
     bool dynamic_parameterization{false};
+    // When true, an RMSNorm is applied to the combined A*X before the inner layer
+    // (the V4 block's attn_norm/ffn_norm sits between hc_pre and the sublayer).
+    bool layer_norm{false};
 };
 
 class ManifoldHyperConnections : public ModuleBase {
@@ -67,6 +70,7 @@ private:
 
     ManifoldHyperConnectionsConfig m_config;
     ModuleBasePtr m_inner_layer;
+    std::shared_ptr<RMSNormLayer> m_layer_norm;  // optional pre-sublayer norm (V4 attn_norm/ffn_norm)
 
     // --- static parameterization ---
     // Raw (pre-constraint) parameters. After the manifold constraints these
