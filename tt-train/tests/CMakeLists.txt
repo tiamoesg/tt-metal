@@ -72,6 +72,7 @@ set(SOURCES
     ops/softmax_backward_op_test.cpp
     ops/silu_op_test.cpp
     ops/sdpa_fw_op_test.cpp
+    ops/sink_attention_test.cpp
     ops/sdpa_bw_op_test.cpp
     ops/layernorm_bw_fused_op_test.cpp
     ops/layernorm_fw_fused_op_test.cpp

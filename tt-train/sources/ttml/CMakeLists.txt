@@ -82,6 +82,8 @@ set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/ops/rand_op.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ops/randn_op.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ops/sampling_op.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ops/sink_attention.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ops/sink_attention.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/optimizers/adamw_composite.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ops/sampling_op.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/optimizers/adamw.cpp
