@@ -7,6 +7,7 @@ set(SOURCES
     core/scoped_test.cpp
     core/clip_grad_norm_test.cpp
     core/random_tests.cpp
+    model/deepseek_v4_test.cpp
     model/linear_regression_ddp_test.cpp
     model/nano_gpt_test.cpp
     model/model_names_test.cpp
@@ -36,12 +37,23 @@ set(SOURCES
     optimizers/sgd_test.cpp
     optimizers/adamw_test.cpp
     optimizers/muon_composite_test.cpp
+    optimizers/muon_v4_test.cpp
     ops/newton_schulz_op_test.cpp
     ops/frobenius_normalize_test.cpp
     ops/k_split_gram_matmul_op_test.cpp
     optimizers/adamw_full_precision_test.cpp
     optimizers/no_op_test.cpp
     modules/distributed/linear_test.cpp
+    modules/compressed_sparse_attention_test.cpp
+    modules/deepseek_moe_test.cpp
+    modules/deepseek_v4_block_test.cpp
+    modules/grouped_output_projection_test.cpp
+    modules/heavily_compressed_attention_test.cpp
+    modules/hybrid_attention_test.cpp
+    modules/kv_compressor_test.cpp
+    modules/lightning_indexer_test.cpp
+    modules/manifold_hyper_connections_test.cpp
+    modules/overlapping_kv_compressor_test.cpp
     serialization/model_serializer_test.cpp
     serialization/flatbuffer_serializer_test.cpp
     serialization/tensor_serializer_test.cpp
@@ -68,6 +80,10 @@ set(SOURCES
     ops/softmax_backward_op_test.cpp
     ops/silu_op_test.cpp
     ops/sdpa_fw_op_test.cpp
+    ops/attention_masks_test.cpp
+    ops/partial_rope_test.cpp
+    ops/sink_attention_test.cpp
+    ops/slice_concat_test.cpp
     ops/sdpa_bw_op_test.cpp
     ops/layernorm_bw_fused_op_test.cpp
     ops/layernorm_fw_fused_op_test.cpp

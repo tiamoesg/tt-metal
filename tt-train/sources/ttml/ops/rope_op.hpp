@@ -37,6 +37,24 @@ struct RotaryEmbeddingParams {
 autograd::TensorPtr rope(
     const autograd::TensorPtr& input, const RotaryEmbeddingParams& rope_params, const uint32_t token_position);
 
+// --- DeepSeek-V4 rope-params transforms (§2.3.3) -------------------------------
+// All three return a new params view (sharing trans_mat) with sliced/swapped trig
+// caches; the underlying rope() op is unchanged.
+
+// Prefix: the first `count` positions [0, count). Use for queries / window KV /
+// outputs whose positions are the contiguous token indices 0..count-1.
+RotaryEmbeddingParams rope_params_prefix(const RotaryEmbeddingParams& params, uint32_t count);
+
+// Strided: positions {0, stride, 2*stride, ...} for `count` entries -- a compressed
+// block s is rotated at its representative token position s*stride (model.py
+// `freqs_cis[:cutoff:ratio]`).
+RotaryEmbeddingParams rope_params_strided(const RotaryEmbeddingParams& params, uint32_t stride, uint32_t count);
+
+// Inverse: rotate by -theta (apply_rotary_emb(..., inverse=True)). Used for the
+// "-i" trick on the core-attention outputs so the value-carried absolute positions
+// become relative.
+RotaryEmbeddingParams rope_params_inverse(const RotaryEmbeddingParams& params);
+
 std::pair<ttnn::Tensor, ttnn::Tensor> gen_freqs(
     uint32_t head_dim,
     uint32_t sequence_length,

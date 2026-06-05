@@ -37,4 +37,16 @@ autograd::TensorPtr reshape(const autograd::TensorPtr& tensor, std::span<uint32_
     return out;
 }
 
+autograd::TensorPtr reshape(const autograd::TensorPtr& tensor, const ttnn::Shape& shape) {
+    auto out = autograd::create_tensor();
+    auto original_shape = tensor->get_value().logical_shape();
+    out->set_value(ttnn::reshape(tensor->get_value(), shape));
+
+    autograd::GradFunction grad = [tensor, out, original_shape]() {
+        tensor->add_grad(ttnn::reshape(out->get_grad(), original_shape));
+    };
+    out->set_node(autograd::add_backward_node(std::move(grad), out, tensor));
+    return out;
+}
+
 }  // namespace ttml::ops

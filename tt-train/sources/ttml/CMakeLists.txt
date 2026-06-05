@@ -25,6 +25,8 @@ set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/models/distributed/gpt2.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/models/distributed/llama.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/models/distributed/pipeline_parallel_llama.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/models/deepseek_v4.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/models/deepseek_v4.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/models/gpt2.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/models/linear_regression.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/models/llama.cpp
@@ -34,21 +36,38 @@ set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/modules/distributed/linear.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/modules/distributed/llama_block.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/modules/distributed/multi_head_attention.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/modules/compressed_sparse_attention.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/modules/deepseek_moe.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/modules/deepseek_v4_block.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/modules/dropout_module.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/modules/embedding_module.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/modules/gpt_block.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/modules/grouped_output_projection.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/modules/grouped_query_attention.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/modules/heavily_compressed_attention.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/modules/hybrid_attention.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/modules/kv_compressor.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/modules/layer_norm_module.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/modules/lightning_indexer.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/modules/linear_module.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/modules/llama_block.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/modules/manifold_hyper_connections.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/modules/module_base.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/modules/multi_head_attention.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/modules/multi_layer_perceptron.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/modules/overlapping_kv_compressor.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/modules/positional_embeddings.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/modules/rms_norm_module.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/modules/rotary_embedding.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/modules/single_head_attention.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/modules/swiglu_mlp.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ops/attention_masks.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ops/attention_masks.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ops/binary_ops.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ops/concat_op.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ops/concat_op.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ops/slice_op.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ops/slice_op.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ops/distributed/comm_ops.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ops/distributed/losses.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ops/distributed/losses.hpp
@@ -68,6 +87,10 @@ set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/ops/rmsnorm_op.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ops/newton_schulz_op.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ops/newton_schulz_op.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ops/partial_rope_op.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ops/partial_rope_op.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ops/permute_op.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ops/permute_op.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ops/rope_op.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ops/softmax_backward_op.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ops/scaled_dot_product_attention.cpp
@@ -77,12 +100,16 @@ set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/ops/rand_op.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ops/randn_op.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ops/sampling_op.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ops/sink_attention.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ops/sink_attention.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/optimizers/adamw_composite.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ops/sampling_op.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/optimizers/adamw.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/optimizers/adamw.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/optimizers/muon_composite.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/optimizers/muon_composite.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/optimizers/muon_v4.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/optimizers/muon_v4.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/optimizers/optimizer_base.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/optimizers/remote_optimizer.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/optimizers/sgd_composite.cpp
