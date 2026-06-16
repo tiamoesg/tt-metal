@@ -168,16 +168,19 @@ class Indexer(nn.Module):
         self.wproj = nn.Linear(cfg.dim, self.n_heads, bias=False)
         self.compressor = Compressor(cfg, ratio, self.head_dim)
 
-    def forward(self, x: torch.Tensor, qr: torch.Tensor) -> torch.Tensor:
-        """Returns a [b, S, G] boolean keep-mask of the top-k compressed blocks per query."""
-        b, s, _ = x.shape
-        keys = self.compressor(x)                         # [b, G, c^I]
-        g = keys.shape[1]
+    def scores(self, x: torch.Tensor, qr: torch.Tensor) -> tuple[torch.Tensor, int]:
+        """Raw index scores I (pre-causal, pre-top-k): [b, S, G], plus G."""
+        keys = self.compressor(x)                                     # [b, G, c^I]
         q = self.wq(qr).unflatten(-1, (self.n_heads, self.head_dim))  # [b, S, H, c^I]
         weights = self.wproj(x) * (self.scale * self.n_heads ** -0.5)  # [b, S, H]
         # I_{t,s} = sum_h w_{t,h} * ReLU(q_{t,h} . key_s)
         score = torch.einsum("bshd,bgd->bshg", q, keys).relu()
-        score = (score * weights.unsqueeze(-1)).sum(dim=2)            # [b, S, G]
+        return (score * weights.unsqueeze(-1)).sum(dim=2), keys.shape[1]
+
+    def forward(self, x: torch.Tensor, qr: torch.Tensor) -> torch.Tensor:
+        """Returns a [b, S, G] boolean keep-mask of the top-k compressed blocks per query."""
+        b, s, _ = x.shape
+        score, g = self.scores(x, qr)
         # compressed-causal: block s visible iff s < (t+1)//ratio
         t = torch.arange(s, device=x.device)
         causal = (torch.arange(g, device=x.device)[None, :] < ((t[:, None] + 1) // self.ratio))  # [S, G]
