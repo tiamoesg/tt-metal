@@ -32,7 +32,9 @@ in isolation** against the reference before composing. Order by dependency:
 - 🔨 **2.1 RoPE variants** — partial + strided (`s*ratio`) + inverse (`−i`). **Implemented**
   (`tt/rope.py`, interleaved-pair convention via constant rotate-matrix) + PCC test
   (`tt/test_rope.py`); pending device run. *(Smallest; unblocks attention.)*
-- ⬜ **2.2 Compressor** — softmax-gated pooling (overlapping CSA / single HCA). Ref: model.py.
+- 🔨 **2.2 Compressor** — softmax-gated pooling (overlapping CSA / single HCA). **Implemented**
+  (`tt/compressor.py` + PCC test `tt/test_compressor.py`); overlap index mapping verified in
+  pure Python; pending device run. Ref: model.py.
 - ⬜ **2.3 Lightning indexer + top-k** — low-rank q, ReLU-weighted scores, `ttnn::topk`. Ref: **DeepSeek-V3.2-Exp (DSA)**.
 - ⬜ **2.4 ⭐ Sparse-gather decode (the hard one)** — gather top-k compressed blocks from
   DRAM + masked SDPA + sink. Extend `deepseek_v3_b1`'s `flash_mla` + `kv_cache_update`.
