@@ -196,6 +196,23 @@ class Indexer(nn.Module):
 # --------------------------------------------------------------------------------------
 # Attention (dense / CSA / HCA) with sliding window, sink, partial RoPE
 # --------------------------------------------------------------------------------------
+def masked_sink_attention(q: torch.Tensor, keys: torch.Tensor, keep: torch.Tensor,
+                          sink: torch.Tensor, scale: float) -> torch.Tensor:
+    """Shared-KV MQA with a 0/1 keep mask and a per-head attention sink.
+
+    q: [b, H, S, hd], keys (= values, shared): [b, K, hd], keep: [b, S, K] (0/1),
+    sink: [H]. The sink adds exp(sink_h) to the softmax denominator so fully-masked
+    rows are safe (-> 0). Returns [b, H, S, hd]. This is the math the production
+    top-k DRAM-gather decode kernel realizes (gathering only the kept K)."""
+    logits = torch.einsum("bhsd,bkd->bhsk", q, keys) * scale       # [b, H, S, K]
+    logits = logits.masked_fill(keep[:, None] <= 0, float("-inf"))
+    m = logits.amax(dim=-1, keepdim=True)
+    m = torch.where(torch.isinf(m), torch.zeros_like(m), m)         # all-masked row -> m=0
+    e = (logits - m).exp()
+    denom = e.sum(-1, keepdim=True) + (sink[None, :, None, None] - m).exp()
+    return torch.einsum("bhsk,bkd->bhsd", e / denom, keys)
+
+
 class Attention(nn.Module):
     def __init__(self, cfg: V4Config, layer_id: int):
         super().__init__()
@@ -250,15 +267,7 @@ class Attention(nn.Module):
             keys = torch.cat([kv_unc, comp], dim=1)                      # [b, S+G, d]
             mask = torch.cat([win_mask[None].expand(b, s, s), comp_keep], dim=-1)  # [b, S, S+G]
 
-        logits = torch.einsum("bhsd,bkd->bhsk", q, keys) * self.scale    # [b, H, S, K]
-        logits = logits.masked_fill(~mask[:, None], float("-inf"))
-        # softmax with per-head attention sink in the denominator
-        m = logits.amax(dim=-1, keepdim=True)
-        m = torch.where(torch.isinf(m), torch.zeros_like(m), m)
-        e = (logits - m).exp()
-        denom = e.sum(-1, keepdim=True) + (self.attn_sink[None, :, None, None] - m).exp()
-        w = e / denom
-        o = torch.einsum("bhsk,bkd->bhsd", w, keys)                      # [b, H, S, d]
+        o = masked_sink_attention(q, keys, mask.float(), self.attn_sink, self.scale)  # [b, H, S, d]
         o = partial_rope(o, freqs, self.rope_dim, inverse=True)         # "-i" output trick
         o = o.transpose(1, 2).reshape(b, s, self.n_heads * self.head_dim)
         return self.wo_b(self.wo_a(o))

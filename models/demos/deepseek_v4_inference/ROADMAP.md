@@ -39,10 +39,15 @@ in isolation** against the reference before composing. Order by dependency:
   (`tt/indexer.py`, reuses `TtCompressor` for keys) + PCC test `tt/test_indexer.py` (scores PCC +
   selection agreement); causal `(t+1)//ratio` verified in pure Python; pending device run.
   Ref: **DeepSeek-V3.2-Exp (DSA)**.
-- ⬜ **2.4 ⭐ Sparse-gather decode (the hard one)** — gather top-k compressed blocks from
-  DRAM + masked SDPA + sink. Extend `deepseek_v3_b1`'s `flash_mla` + `kv_cache_update`.
-  Ref: **DSA kernels** + **FlashMLA**. *This step decides whether sparsity pays off.*
-- ⬜ **2.5 Sliding-window branch + attention sink** — fold into 2.4's SDPA.
+- 🔨 **2.4a ⭐ Sparse attention math core** — masked shared-KV MQA + attention sink. **Implemented**
+  (`tt/sink_attention.py` + PCC test `tt/test_sink_attention.py`, incl. fully-masked-row sink
+  safety); pending device run. Mirrors tt-train C++ shared_kv_mqa_attention.
+- ⬜ **2.4b ⭐ Sparse-gather decode (the hard perf kernel)** — replace the dense [S,K] keep mask
+  with a top-k **DRAM gather** of only the kept blocks + masked SDPA. Extend
+  `deepseek_v3_b1`'s `flash_mla` + `kv_cache_update`. Ref: **DSA kernels** + **FlashMLA**.
+  *This step decides whether sparsity pays off.*
+- 🔨 **2.5 Sliding-window branch + attention sink** — sink done in 2.4a; window = combine
+  recent uncompressed KV into the mask/keys (assembled in the attention module, step 3.1).
 - ⬜ **2.6 Grouped output projection** — `wo_a`/`wo_b`.
 - ⬜ **2.7 mHC** — `hc_pre`/`hc_post` + Sinkhorn; widens residual to `hc_mult` streams.
 - ⬜ **2.8 DeepSeekMoE** — sqrtsoftplus gate (reuse `b1` `deepseek_moe_gate`) + DRAM-streamed experts.
