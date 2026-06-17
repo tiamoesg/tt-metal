@@ -48,9 +48,15 @@ in isolation** against the reference before composing. Order by dependency:
   *This step decides whether sparsity pays off.*
 - 🔨 **2.5 Sliding-window branch + attention sink** — sink done in 2.4a; window = combine
   recent uncompressed KV into the mask/keys (assembled in the attention module, step 3.1).
-- ⬜ **2.6 Grouped output projection** — `wo_a`/`wo_b`.
-- ⬜ **2.7 mHC** — `hc_pre`/`hc_post` + Sinkhorn; widens residual to `hc_mult` streams.
-- ⬜ **2.8 DeepSeekMoE** — sqrtsoftplus gate (reuse `b1` `deepseek_moe_gate`) + DRAM-streamed experts.
+- 🔨 **2.6 Grouped output projection** — `wo_a`/`wo_b`. **Implemented** (`tt/output_projection.py`
+  + PCC test `tt/test_output_projection.py`); pending device run.
+- 🔨 **2.7 mHC** — `hc_pre`/`hc_post` + Sinkhorn; widens residual to `hc_mult` streams. **Implemented**
+  (`tt/mhc.py`, streams-as-list + fused mix split into three tile-aligned matmuls) + PCC test
+  `tt/test_mhc.py` (full pre/post cycle); split/reshape/sinkhorn mapping verified exact in pure
+  Python; pending device run.
+- 🔨 **2.8 DeepSeekMoE** — sqrtsoftplus gate (reuse `b1` `deepseek_moe_gate`) + DRAM-streamed experts.
+  **Implemented** (`tt/moe.py`, dense-equivalent of token-choice routing) + PCC test `tt/test_moe.py`
+  (sqrtsoftplus + softmax gates); pending device run + the production DRAM-streamed top-k gather.
 - **Gate (each):** module PCC > 0.99 vs reference at `small()` shapes.
 
 ## Phase 3 — Assemble the decode engine (on the `b1` skeleton)
