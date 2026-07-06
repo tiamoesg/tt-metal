@@ -29,6 +29,8 @@ _DTYPE_BY_NAME = {
     "bfloat16": ttnn.bfloat16,
     "bfp8": ttnn.bfloat8_b,
     "bfloat8_b": ttnn.bfloat8_b,
+    "bfp4": ttnn.bfloat4_b,
+    "bfloat4_b": ttnn.bfloat4_b,
     "fp32": ttnn.float32,
     "float32": ttnn.float32,
 }
@@ -45,6 +47,8 @@ def dtype_to_str(dtype):
         return "bf16"
     if dtype == ttnn.bfloat8_b:
         return "bfp8"
+    if dtype == ttnn.bfloat4_b:
+        return "bfp4"
     if dtype == ttnn.float32:
         return "fp32"
     raise ValueError(f"No cache-suffix mapping for dtype {dtype}")
